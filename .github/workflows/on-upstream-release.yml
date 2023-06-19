@@ -31,7 +31,7 @@ jobs:
           echo "Committing file…" && git commit -am "Found new release version $(cat .kpxc-upstream-version)"
           echo "Switching to new branch…" && git switch -c proposed-$(cat .kpxc-upstream-version)
           echo "Adding upstream remote…" && git remote add upstream https://github.com/keepassxreboot/keepassxc.git
-          echo "Fetching tags…" && git fetch --tags upstream
+          echo "Fetching tags…" && git fetch --tags --force upstream
           echo "Merging…" && git merge --allow-unrelated-histories --strategy-option theirs --no-edit tags/$(cat .kpxc-upstream-version)
           echo "Modifying changelog…" && sed -i "1s/^/keepassxc ($(cat .kpxc-upstream-version)-1~jammy1) jammy; urgency=medium\n\n  * Upstream update\n\n -- Fabian Schillig <xorgmc@gmail.com>  $(date -R)\n\n/" debian/changelog
           echo "Adding changelog…" && git add debian/changelog
