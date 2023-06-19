@@ -36,4 +36,5 @@ jobs:
           echo "Modifying changelog…" && sed -i "1s/^/keepassxc ($(cat .kpxc-upstream-version)-1~jammy1) jammy; urgency=medium\n\n  * Upstream update\n\n -- Fabian Schillig <xorgmc@gmail.com>  $(date -R)\n\n/" debian/changelog
           echo "Adding changelog…" && git add debian/changelog
           echo "Committing changelog…" && git commit -am "Update debian changelog"
-          echo "Pushing…" && git push
+          echo "Creating tag…" && git tag $(cat .kpxc-upstream-version)p
+          echo "Pushing…" && git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
