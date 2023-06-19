@@ -26,3 +26,12 @@ jobs:
           buildpackage-opts: -i -us -uc -b
       - name: List files
         run: ls -R
+      - name: deploy file
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+            username: 'github'
+            server: ${{ secrets.SSH_SERVER }}
+            ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} 
+            local_path: './debian/artifacts'
+            remote_path: '/home/github/build'
+            sftpArgs: '-o ConnectTimeout=5'
