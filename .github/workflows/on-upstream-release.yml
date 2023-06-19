@@ -7,9 +7,10 @@ jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@master
         with:
           token: ${{ secrets.PAT }}
+          fetch-depth: 0
       - name: Checkout latest release tag
         run: |
           LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
