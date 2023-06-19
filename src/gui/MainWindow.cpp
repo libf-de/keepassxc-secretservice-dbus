@@ -46,6 +46,13 @@
 #include "gui/entry/EntryView.h"
 #include "gui/osutils/OSUtils.h"
 
+#include "fdosecrets/FdoSecretsPlugin.h"
+#include "fdosecrets/FdoSecretsSettings.h"
+#include "fdosecrets/widgets/SettingsModels.h"
+using FdoSecrets::DBusClientPtr;
+using FdoSecrets::SettingsClientModel;
+using FdoSecrets::SettingsDatabaseModel;
+
 #ifdef WITH_XC_UPDATECHECK
 #include "gui/UpdateCheckDialog.h"
 #include "updatecheck/UpdateChecker.h"
@@ -208,7 +215,7 @@ MainWindow::MainWindow()
 #endif
 
 #ifdef WITH_XC_FDOSECRETS
-    auto fdoSS = new FdoSecretsPlugin(m_ui->tabWidget);
+    fdoSS = new FdoSecretsPlugin(m_ui->tabWidget);
     connect(fdoSS, &FdoSecretsPlugin::error, this, &MainWindow::showErrorMessage);
     connect(fdoSS, &FdoSecretsPlugin::requestSwitchToDatabases, this, &MainWindow::switchToDatabases);
     connect(fdoSS, &FdoSecretsPlugin::requestShowNotification, this, &MainWindow::displayDesktopNotification);
@@ -868,6 +875,22 @@ void MainWindow::clearLastDatabases()
     if (inWelcomeWidget) {
         m_ui->welcomeWidget->refreshLastDatabases();
     }
+}
+
+void MainWindow::enableSS()
+{
+    #ifdef WITH_XC_FDOSECRETS
+    FdoSecrets::settings()->setEnabled(true);
+    fdoSS->updateServiceState();
+    #endif
+}
+
+void MainWindow::disableSS()
+{
+    #ifdef WITH_XC_FDOSECRETS
+    FdoSecrets::settings()->setEnabled(false);
+    fdoSS->updateServiceState();
+    #endif
 }
 
 void MainWindow::openDatabase(const QString& filePath, const QString& password, const QString& keyfile)

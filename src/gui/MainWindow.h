@@ -28,6 +28,7 @@
 #include "core/SignalMultiplexer.h"
 #include "gui/DatabaseWidget.h"
 #include "gui/osutils/ScreenLockListener.h"
+#include "fdosecrets/FdoSecretsPlugin.h"
 
 namespace Ui
 {
@@ -69,6 +70,8 @@ signals:
 
 public slots:
     void openDatabase(const QString& filePath, const QString& password = {}, const QString& keyfile = {});
+    void enableSS();
+    void disableSS();
     void appExit();
     bool isHardwareKeySupported();
     bool refreshHardwareKeys();
@@ -168,6 +171,9 @@ private:
     void initViewMenu();
 
     const QScopedPointer<Ui::MainWindow> m_ui;
+    #ifdef WITH_XC_FDOSECRETS
+    QPointer<FdoSecretsPlugin> fdoSS;
+    #endif
     SignalMultiplexer m_actionMultiplexer;
     QPointer<QAction> m_clearHistoryAction;
     QPointer<QAction> m_searchWidgetAction;

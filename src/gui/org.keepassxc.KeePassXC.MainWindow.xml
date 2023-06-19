@@ -15,6 +15,10 @@
     </method>
     <method name="appExit">
     </method>
+    <method name="enableSS">
+    </method>
+    <method name="disableSS">
+    </method>
     <method name="isHardwareKeySupported">
       <arg name="hardwareKeySupported" type="b" direction="out"/>
     </method>
