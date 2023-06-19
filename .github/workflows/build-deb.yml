@@ -31,6 +31,7 @@ jobs:
         with:
             username: 'github'
             server: ${{ secrets.SSH_SERVER }}
+            port: ${{ secrets.SSH_PORT }}
             ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} 
             local_path: './debian/artifacts'
             remote_path: '/home/github/build'
