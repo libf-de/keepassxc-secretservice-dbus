@@ -24,3 +24,5 @@ jobs:
           DEB_BUILD_OPTIONS: noautodbgsym
         with:
           buildpackage-opts: -i -us -uc -b
+      - name: List files
+        run: ls -R
