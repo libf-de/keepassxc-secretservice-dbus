@@ -22,7 +22,9 @@ jobs:
           jq -r ".tag_name" > .kpxc-upstream-version
       - name: Check for modified files
         id: git-check
-        run: echo modified=$([ -z "`git status --porcelain`" ] && echo "false" || echo "true") >> $GITHUB_OUTPUT
+        run: |
+          [ -z "`git status --porcelain`" ] && echo "false" || echo "true"
+          echo modified=$([ -z "`git status --porcelain`" ] && echo "false" || echo "true") >> $GITHUB_OUTPUT
       - name: Commit latest release version
         if: steps.git-check.outputs.modified == 'true'
         run: |
@@ -37,5 +39,6 @@ jobs:
           echo "Modifying changelog…" && sed -i "1s/^/keepassxc ($(cat .kpxc-upstream-version)-1~jammy1) jammy; urgency=medium\n\n  * Upstream update\n\n -- Fabian Schillig <xorgmc@gmail.com>  $(date -R)\n\n/" debian/changelog
           echo "Adding changelog…" && git add debian/changelog
           echo "Committing changelog…" && git commit -am "Update debian changelog"
-          echo "Creating tag…" && git tag $(cat .kpxc-upstream-version)p
           echo "Pushing…" && git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
+          echo "Creating tag…" && git tag $(cat .kpxc-upstream-version)p
+          echo "Pushing tag…" && git push origin $(cat .kpxc-upstream-version)p
