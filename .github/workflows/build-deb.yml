@@ -1,3 +1,5 @@
+name: Build a deb package
+
 on:
   push:
     paths:
@@ -8,7 +10,15 @@ jobs:
   build-debs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@master
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+      - name: Checkout latest release tag
+        run: |
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "Latest tag is $LATEST_TAG"
+          git checkout tags/$LATEST_TAG
       - uses: jtdor/build-deb-action@v1
         env:
           DEB_BUILD_OPTIONS: noautodbgsym
