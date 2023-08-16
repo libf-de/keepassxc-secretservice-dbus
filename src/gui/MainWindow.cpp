@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2020 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -449,6 +449,7 @@ MainWindow::MainWindow()
         SIGNAL(currentModeChanged(DatabaseWidget::Mode)), this, SLOT(setMenuActionState(DatabaseWidget::Mode)));
     m_actionMultiplexer.connect(SIGNAL(groupChanged()), this, SLOT(setMenuActionState()));
     m_actionMultiplexer.connect(SIGNAL(entrySelectionChanged()), this, SLOT(setMenuActionState()));
+    m_actionMultiplexer.connect(SIGNAL(databaseNonDataChanged()), this, SLOT(setMenuActionState()));
     m_actionMultiplexer.connect(SIGNAL(groupContextMenuRequested(QPoint)), this, SLOT(showGroupContextMenu(QPoint)));
     m_actionMultiplexer.connect(SIGNAL(entryContextMenuRequested(QPoint)), this, SLOT(showEntryContextMenu(QPoint)));
     m_actionMultiplexer.connect(SIGNAL(groupChanged()), this, SLOT(updateEntryCountLabel()));
@@ -714,13 +715,6 @@ MainWindow::~MainWindow()
  */
 void MainWindow::restoreConfigState()
 {
-    // start minimized if configured
-    if (config()->get(Config::GUI_MinimizeOnStartup).toBool()) {
-        hideWindow();
-    } else {
-        bringToFront();
-    }
-
     if (config()->get(Config::OpenPreviousDatabasesOnStartup).toBool()) {
         const QStringList fileNames = config()->get(Config::LastOpenedDatabases).toStringList();
         for (const QString& filename : fileNames) {
@@ -959,8 +953,9 @@ void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
             m_ui->menuEntryCopyAttribute->setEnabled(singleEntrySelected);
             m_ui->menuEntryTotp->setEnabled(singleEntrySelected);
             m_ui->menuTags->setEnabled(entriesSelected);
-            m_ui->actionEntryAutoType->setEnabled(singleEntrySelected);
-            m_ui->actionEntryAutoType->menu()->setEnabled(singleEntrySelected);
+            m_ui->actionEntryAutoType->setEnabled(singleEntrySelected && dbWidget->currentEntryHasAutoTypeEnabled());
+            m_ui->actionEntryAutoType->menu()->setEnabled(singleEntrySelected
+                                                          && dbWidget->currentEntryHasAutoTypeEnabled());
             m_ui->actionEntryAutoTypeSequence->setText(
                 singleEntrySelected ? dbWidget->currentSelectedEntry()->effectiveAutoTypeSequence()
                                     : Group::RootAutoTypeSequence);
@@ -1393,6 +1388,24 @@ void MainWindow::databaseTabChanged(int tabIndex)
     updateEntryCountLabel();
 }
 
+void MainWindow::showEvent(QShowEvent* event)
+{
+    Q_UNUSED(event)
+#ifdef Q_OS_WIN
+    // Qt Hack - Prevent white flicker when showing window
+    QTimer::singleShot(50, this, [=] { setProperty("windowOpacity", 1.0); });
+#endif
+}
+
+void MainWindow::hideEvent(QHideEvent* event)
+{
+    Q_UNUSED(event)
+#ifdef Q_OS_WIN
+    // Qt Hack - Prevent white flicker when showing window
+    setProperty("windowOpacity", 0.0);
+#endif
+}
+
 void MainWindow::closeEvent(QCloseEvent* event)
 {
     if (m_appExiting) {
@@ -1571,12 +1584,8 @@ void MainWindow::updateTrayIcon()
             connect(actionToggle, SIGNAL(triggered()), SLOT(toggleWindow()));
         }
 
-        if (m_ui->tabWidget->hasLockableDatabases()) {
-            m_trayIcon->setIcon(icons()->trayIconUnlocked());
-        } else {
-            m_trayIcon->setIcon(icons()->trayIconLocked());
-        }
-
+        bool showUnlocked = m_ui->tabWidget->hasLockableDatabases();
+        m_trayIcon->setIcon(icons()->trayIcon(showUnlocked));
         m_trayIcon->setToolTip(windowTitle().replace("[*]", isWindowModified() ? "*" : ""));
         m_trayIcon->show();
 
@@ -1683,7 +1692,12 @@ void MainWindow::applySettingsChanges()
     }
 
     m_ui->toolBar->setHidden(config()->get(Config::GUI_HideToolbar).toBool());
-    m_ui->toolBar->setMovable(config()->get(Config::GUI_MovableToolbar).toBool());
+    auto movable = config()->get(Config::GUI_MovableToolbar).toBool();
+    m_ui->toolBar->setMovable(movable);
+    if (!movable) {
+        // Move the toolbar back to the top of the main window
+        addToolBar(Qt::TopToolBarArea, m_ui->toolBar);
+    }
 
     bool isOk = false;
     const auto toolButtonStyle =

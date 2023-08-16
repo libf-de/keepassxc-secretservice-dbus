@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include "keeshare/KeeShare.h"
 #include "keeshare/KeeShareSettings.h"
 #endif
+
+#include <QScrollBar>
 
 namespace
 {
@@ -65,6 +67,8 @@ EntryPreviewWidget::EntryPreviewWidget(QWidget* parent)
     // Align notes text with label text
     m_ui->entryNotesTextEdit->document()->setDocumentMargin(0);
     m_ui->groupNotesTextEdit->document()->setDocumentMargin(0);
+
+    m_ui->entryTotpLabel->installEventFilter(this);
 
     connect(m_ui->entryTotpButton, SIGNAL(toggled(bool)), m_ui->entryTotpLabel, SLOT(setVisible(bool)));
     connect(m_ui->entryTotpButton, SIGNAL(toggled(bool)), m_ui->entryTotpProgress, SLOT(setVisible(bool)));
@@ -109,6 +113,18 @@ EntryPreviewWidget::EntryPreviewWidget(QWidget* parent)
 
 EntryPreviewWidget::~EntryPreviewWidget()
 {
+}
+
+bool EntryPreviewWidget::eventFilter(QObject* object, QEvent* event)
+{
+    if (object == m_ui->entryTotpLabel && event->type() == QEvent::MouseButtonDblClick) {
+        if (m_currentEntry && m_currentEntry->hasTotp()) {
+            clipboard()->setText(m_currentEntry->totp());
+            m_ui->entryTotpLabel->clearFocus();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(object, event);
 }
 
 void EntryPreviewWidget::clear()
@@ -288,16 +304,19 @@ void EntryPreviewWidget::setPasswordVisible(bool state)
                 html += "<span style=\"color: " + QString(color) + ";\">" + QString(c).toHtmlEscaped() + "</span>";
             }
             // clang-format on
-            m_ui->entryPasswordLabel->setHtml(html);
+            m_ui->entryPasswordLabel->setText(html);
         } else {
             // No color
-            m_ui->entryPasswordLabel->setPlainText(password);
+            m_ui->entryPasswordLabel->setText(password);
         }
     } else if (password.isEmpty() && !config()->get(Config::Security_PasswordEmptyPlaceholder).toBool()) {
-        m_ui->entryPasswordLabel->setPlainText("");
+        m_ui->entryPasswordLabel->setText("");
     } else {
-        m_ui->entryPasswordLabel->setPlainText(QString("\u25cf").repeated(6));
+        m_ui->entryPasswordLabel->setText(QString("\u25cf").repeated(6));
     }
+
+    m_ui->passwordScrollArea->setMaximumHeight(m_ui->entryPasswordLabel->sizeHint().height()
+                                               + m_ui->passwordScrollArea->horizontalScrollBar()->sizeHint().height());
 
     m_ui->togglePasswordButton->setIcon(icons()->onOffIcon("password-show", state));
 }
@@ -470,7 +489,9 @@ void EntryPreviewWidget::updateEntryAutotypeTab()
     }
 
     m_ui->entryAutotypeTree->addTopLevelItems(items);
-    setTabEnabled(m_ui->entryTabWidget, m_ui->entryAutotypeTab, m_currentEntry->autoTypeEnabled());
+    setTabEnabled(m_ui->entryTabWidget,
+                  m_ui->entryAutotypeTab,
+                  m_currentEntry->autoTypeEnabled() && m_currentEntry->groupAutoTypeEnabled());
 }
 
 void EntryPreviewWidget::updateGroupHeaderLine()

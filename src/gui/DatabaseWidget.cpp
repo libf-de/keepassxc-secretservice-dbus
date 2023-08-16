@@ -1,6 +1,6 @@
 /*
+ * Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
  * Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
- * Copyright (C) 2021 KeePassXC Team <team@keepassxc.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@
 #include "gui/group/GroupView.h"
 #include "gui/reports/ReportsDialog.h"
 #include "gui/tag/TagView.h"
+#include "gui/widgets/ElidedLabel.h"
 #include "keeshare/KeeShare.h"
 
 #ifdef WITH_XC_NETWORKING
@@ -73,7 +74,7 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     , m_previewView(new EntryPreviewWidget(this))
     , m_previewSplitter(new QSplitter(m_mainWidget))
     , m_searchingLabel(new QLabel(this))
-    , m_shareLabel(new QLabel(this))
+    , m_shareLabel(new ElidedLabel(this))
     , m_csvImportWizard(new CsvImportWizard(this))
     , m_editEntryWidget(new EditEntryWidget(this))
     , m_editGroupWidget(new EditGroupWidget(this))
@@ -159,7 +160,7 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
 
 #ifdef WITH_XC_KEESHARE
     m_shareLabel->setObjectName("KeeShareBanner");
-    m_shareLabel->setText(tr("Shared group…"));
+    m_shareLabel->setRawText(tr("Shared group…"));
     m_shareLabel->setAlignment(Qt::AlignCenter);
     m_shareLabel->setVisible(false);
 #endif
@@ -1107,6 +1108,8 @@ void DatabaseWidget::connectDatabaseSignals()
     connect(m_db.data(), &Database::modified, this, &DatabaseWidget::onDatabaseModified);
     connect(m_db.data(), &Database::databaseSaved, this, &DatabaseWidget::databaseSaved);
     connect(m_db.data(), &Database::databaseFileChanged, this, &DatabaseWidget::reloadDatabaseFile);
+    connect(m_db.data(), &Database::databaseNonDataChanged, this, &DatabaseWidget::databaseNonDataChanged);
+    connect(m_db.data(), &Database::databaseNonDataChanged, this, &DatabaseWidget::onDatabaseNonDataChanged);
 }
 
 void DatabaseWidget::loadDatabase(bool accepted)
@@ -1516,7 +1519,7 @@ void DatabaseWidget::onGroupChanged()
 #ifdef WITH_XC_KEESHARE
     auto shareLabel = KeeShare::sharingLabel(group);
     if (!shareLabel.isEmpty()) {
-        m_shareLabel->setText(shareLabel);
+        m_shareLabel->setRawText(shareLabel);
         m_shareLabel->setVisible(true);
     } else {
         m_shareLabel->setVisible(false);
@@ -1535,6 +1538,14 @@ void DatabaseWidget::onDatabaseModified()
         m_blockAutoSave = false;
     }
     refreshSearch();
+}
+
+void DatabaseWidget::onDatabaseNonDataChanged()
+{
+    // Force mark the database modified if we are not auto-saving non-data changes
+    if (!config()->get(Config::AutoSaveNonDataChanges).toBool()) {
+        m_db->markAsModified();
+    }
 }
 
 QString DatabaseWidget::getCurrentSearch()
@@ -1942,6 +1953,16 @@ bool DatabaseWidget::currentEntryHasNotes()
         return false;
     }
     return !currentEntry->resolveMultiplePlaceholders(currentEntry->notes()).isEmpty();
+}
+
+bool DatabaseWidget::currentEntryHasAutoTypeEnabled()
+{
+    auto currentEntry = currentSelectedEntry();
+    if (!currentEntry) {
+        return false;
+    }
+
+    return currentEntry->autoTypeEnabled() && currentEntry->groupAutoTypeEnabled();
 }
 
 GroupView* DatabaseWidget::groupView()
