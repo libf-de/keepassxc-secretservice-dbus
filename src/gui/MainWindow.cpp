@@ -445,6 +445,11 @@ MainWindow::MainWindow()
     m_ui->actionKeyboardShortcuts->setIcon(icons()->icon("keyboard-shortcuts"));
     m_ui->actionCheckForUpdates->setIcon(icons()->icon("system-software-update"));
 
+#ifdef WITH_XC_BROWSER_PASSKEYS
+    m_ui->actionPasskeys->setIcon(icons()->icon("passkey"));
+    m_ui->actionImportPasskey->setIcon(icons()->icon("document-import"));
+#endif
+
     m_actionMultiplexer.connect(
         SIGNAL(currentModeChanged(DatabaseWidget::Mode)), this, SLOT(setMenuActionState(DatabaseWidget::Mode)));
     m_actionMultiplexer.connect(SIGNAL(groupChanged()), this, SLOT(setMenuActionState()));
@@ -490,6 +495,10 @@ MainWindow::MainWindow()
     connect(m_ui->actionDatabaseSecurity, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showDatabaseSecurity()));
     connect(m_ui->actionReports, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showDatabaseReports()));
     connect(m_ui->actionDatabaseSettings, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showDatabaseSettings()));
+#ifdef WITH_XC_BROWSER_PASSKEYS
+    connect(m_ui->actionPasskeys, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showPasskeys()));
+    connect(m_ui->actionImportPasskey, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importPasskey()));
+#endif
     connect(m_ui->actionImportCsv, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importCsv()));
     connect(m_ui->actionImportKeePass1, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importKeePass1Database()));
     connect(m_ui->actionImportOpVault, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importOpVaultDatabase()));
@@ -1000,6 +1009,10 @@ void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
             m_ui->actionExportHtml->setEnabled(true);
             m_ui->actionExportXML->setEnabled(true);
             m_ui->actionDatabaseMerge->setEnabled(m_ui->tabWidget->currentIndex() != -1);
+#ifdef WITH_XC_BROWSER_PASSKEYS
+            m_ui->actionPasskeys->setEnabled(true);
+            m_ui->actionImportPasskey->setEnabled(true);
+#endif
 #ifdef WITH_XC_SSHAGENT
             bool singleEntryHasSshKey =
                 singleEntrySelected && sshAgent()->isEnabled() && dbWidget->currentEntryHasSshKey();
@@ -1066,6 +1079,14 @@ void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
             m_ui->actionEntryAddToAgent->setVisible(false);
             m_ui->actionEntryRemoveFromAgent->setVisible(false);
             m_ui->actionGroupEmptyRecycleBin->setVisible(false);
+
+#ifdef WITH_XC_BROWSER_PASSKEYS
+            m_ui->actionPasskeys->setEnabled(false);
+            m_ui->actionImportPasskey->setEnabled(false);
+#else
+            m_ui->actionPasskeys->setVisible(false);
+            m_ui->actionImportPasskey->setVisible(false);
+#endif
 
             m_searchWidgetAction->setEnabled(false);
             break;
