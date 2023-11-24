@@ -84,7 +84,9 @@ public:
     QString getCurrentTotp(const QString& uuid);
     void showPasswordGenerator(const KeyPairMessage& keyPairMessage);
     bool isPasswordGeneratorRequested() const;
+    QSharedPointer<Database> getDatabase(const QUuid& rootGroupUuid = {});
     QSharedPointer<Database> selectedDatabase();
+    QList<QSharedPointer<Database>> getOpenDatabases();
 #ifdef WITH_XC_BROWSER_PASSKEYS
     QJsonObject
     showPasskeysRegisterPrompt(const QJsonObject& publicKey, const QString& origin, const StringPairList& keyList);
@@ -124,7 +126,6 @@ public:
     static const QString OPTION_ONLY_HTTP_AUTH;
     static const QString OPTION_NOT_HTTP_AUTH;
     static const QString OPTION_OMIT_WWW;
-    static const QString ADDITIONAL_URL;
 
 signals:
     void requestUnlock();
@@ -191,7 +192,6 @@ private:
                    const QString& siteUrl,
                    const QString& formUrl,
                    const bool omitWwwSubdomain = false);
-    QSharedPointer<Database> getDatabase();
     QString getDatabaseRootUuid();
     QString getDatabaseRecycleBinUuid();
     bool checkLegacySettings(QSharedPointer<Database> db);
@@ -204,12 +204,11 @@ private:
 
     bool m_dialogActive;
     bool m_bringToFrontRequested;
-    bool m_passwordGeneratorRequested;
     WindowState m_prevWindowState;
     QUuid m_keepassBrowserUUID;
 
     QPointer<DatabaseWidget> m_currentDatabaseWidget;
-    QScopedPointer<PasswordGeneratorWidget> m_passwordGenerator;
+    QPointer<PasswordGeneratorWidget> m_passwordGenerator;
 
     Q_DISABLE_COPY(BrowserService);
 
