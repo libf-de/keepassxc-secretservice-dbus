@@ -1,4 +1,4 @@
-#  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
+#  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
 #  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -59,7 +59,9 @@ set(keepassx_SOURCES
         core/TimeDelta.cpp
         core/TimeInfo.cpp
         core/Tools.cpp
+        core/Totp.cpp
         core/Translator.cpp
+        core/UrlTools.cpp
         cli/Utils.cpp
         cli/TextStream.cpp
         crypto/Crypto.cpp
@@ -69,6 +71,7 @@ set(keepassx_SOURCES
         crypto/kdf/Kdf.cpp
         crypto/kdf/AesKdf.cpp
         crypto/kdf/Argon2Kdf.cpp
+        format/BitwardenReader.cpp
         format/CsvExporter.cpp
         format/CsvParser.cpp
         format/KeePass1Reader.cpp
@@ -85,6 +88,7 @@ set(keepassx_SOURCES
         format/Kdbx4Writer.cpp
         format/KdbxXmlWriter.cpp
         format/OpData01.cpp
+        format/OPUXReader.cpp
         format/OpVaultReader.cpp
         format/OpVaultReaderAttachments.cpp
         format/OpVaultReaderBandEntry.cpp
@@ -115,12 +119,10 @@ set(keepassx_SOURCES
         gui/GuiTools.cpp
         gui/HtmlExporter.cpp
         gui/IconModels.cpp
-        gui/KeePass1OpenWidget.cpp
         gui/KMessageWidget.cpp
         gui/MainWindow.cpp
         gui/MessageBox.cpp
         gui/MessageWidget.cpp
-        gui/OpVaultOpenWidget.cpp
         gui/PasswordWidget.cpp
         gui/PasswordGeneratorWidget.cpp
         gui/ApplicationSettingsWidget.cpp
@@ -135,7 +137,6 @@ set(keepassx_SOURCES
         gui/URLEdit.cpp
         gui/WelcomeWidget.cpp
         gui/csvImport/CsvImportWidget.cpp
-        gui/csvImport/CsvImportWizard.cpp
         gui/csvImport/CsvParserModel.cpp
         gui/entry/AutoTypeAssociationsModel.cpp
         gui/entry/EditEntryWidget.cpp
@@ -178,6 +179,9 @@ set(keepassx_SOURCES
         gui/widgets/ElidedLabel.cpp
         gui/widgets/KPToolBar.cpp
         gui/widgets/PopupHelpWidget.cpp
+        gui/wizard/ImportWizard.cpp
+        gui/wizard/ImportWizardPageReview.cpp
+        gui/wizard/ImportWizardPageSelect.cpp
         gui/wizard/NewDatabaseWizard.cpp
         gui/wizard/NewDatabaseWizardPage.cpp
         gui/wizard/NewDatabaseWizardPageMetaData.cpp
@@ -192,8 +196,7 @@ set(keepassx_SOURCES
         streams/LayeredStream.cpp
         streams/qtiocompressor.cpp
         streams/StoreDataStream.cpp
-        streams/SymmetricCipherStream.cpp
-        totp/totp.cpp)
+        streams/SymmetricCipherStream.cpp)
 if(APPLE)
     set(keepassx_SOURCES
             ${keepassx_SOURCES}
@@ -227,6 +230,17 @@ if(WIN32)
     endif()
 endif()
 
+if(WITH_XC_YUBIKEY)
+    set(keepassx_SOURCES ${keepassx_SOURCES} gui/osutils/DeviceListener.cpp)
+    if(APPLE)
+        set(keepassx_SOURCES ${keepassx_SOURCES} gui/osutils/macutils/DeviceListenerMac.cpp)
+    elseif(UNIX)
+        set(keepassx_SOURCES ${keepassx_SOURCES} gui/osutils/nixutils/DeviceListenerLibUsb.cpp)
+    elseif(WIN32)
+        set(keepassx_SOURCES ${keepassx_SOURCES} gui/osutils/winutils/DeviceListenerWin.cpp)
+    endif()
+endif()
+
 set(keepassx_SOURCES ${keepassx_SOURCES}
         ../share/icons/icons.qrc
         ../share/wizard/wizard.qrc)
@@ -236,6 +250,7 @@ set(keepassx_SOURCES_MAINEXE main.cpp)
 add_feature_info(Auto-Type WITH_XC_AUTOTYPE "Automatic password typing")
 add_feature_info(Networking WITH_XC_NETWORKING "Compile KeePassXC with network access code (e.g. for downloading website icons)")
 add_feature_info(KeePassXC-Browser WITH_XC_BROWSER "Browser integration with KeePassXC-Browser")
+add_feature_info(Passkeys WITH_XC_BROWSER_PASSKEYS "Passkeys support for browser integration")
 add_feature_info(SSHAgent WITH_XC_SSHAGENT "SSH agent integration compatible with KeeAgent")
 add_feature_info(KeeShare WITH_XC_KEESHARE "Sharing integration with KeeShare")
 add_feature_info(YubiKey WITH_XC_YUBIKEY "YubiKey HMAC-SHA1 challenge-response")
@@ -248,10 +263,21 @@ add_subdirectory(browser)
 add_subdirectory(proxy)
 if(WITH_XC_BROWSER)
     set(keepassxcbrowser_LIB keepassxcbrowser)
-    set(keepassx_SOURCES ${keepassx_SOURCES} gui/dbsettings/DatabaseSettingsWidgetBrowser.cpp)
-    set(keepassx_SOURCES ${keepassx_SOURCES} gui/entry/EntryURLModel.cpp)
-    set(keepassx_SOURCES ${keepassx_SOURCES} gui/reports/ReportsWidgetBrowserStatistics.cpp)
-    set(keepassx_SOURCES ${keepassx_SOURCES} gui/reports/ReportsPageBrowserStatistics.cpp)
+    set(keepassx_SOURCES ${keepassx_SOURCES}
+            gui/dbsettings/DatabaseSettingsWidgetBrowser.cpp
+            gui/entry/EntryURLModel.cpp
+            gui/reports/ReportsWidgetBrowserStatistics.cpp
+            gui/reports/ReportsPageBrowserStatistics.cpp)
+endif()
+
+if(WITH_XC_BROWSER_PASSKEYS)
+    set(keepassx_SOURCES ${keepassx_SOURCES}
+            gui/reports/ReportsWidgetPasskeys.cpp
+            gui/reports/ReportsPagePasskeys.cpp
+            gui/passkeys/PasskeyExporter.cpp
+            gui/passkeys/PasskeyExportDialog.cpp
+            gui/passkeys/PasskeyImporter.cpp
+            gui/passkeys/PasskeyImportDialog.cpp)
 endif()
 
 add_subdirectory(autotype)
@@ -292,14 +318,14 @@ if(WIN32)
 endif()
 
 if(WITH_XC_YUBIKEY)
-    list(APPEND keepassx_SOURCES 
+    list(APPEND keepassx_SOURCES
         keys/drivers/YubiKey.h
-        keys/drivers/YubiKey.cpp 
-        keys/drivers/YubiKeyInterface.cpp 
-        keys/drivers/YubiKeyInterfaceUSB.cpp 
+        keys/drivers/YubiKey.cpp
+        keys/drivers/YubiKeyInterface.cpp
+        keys/drivers/YubiKeyInterfaceUSB.cpp
         keys/drivers/YubiKeyInterfacePCSC.cpp)
 else()
-    list(APPEND keepassx_SOURCES 
+    list(APPEND keepassx_SOURCES
         keys/drivers/YubiKey.h
         keys/drivers/YubiKeyStub.cpp)
 endif()
@@ -342,6 +368,7 @@ target_link_libraries(keepassx_core
         ${PCSC_LIBRARIES}
         ${ZXCVBN_LIBRARIES}
         ${ZLIB_LIBRARIES}
+        ${MINIZIP_LIBRARIES}
         ${ARGON2_LIBRARIES}
         ${thirdparty_LIBRARIES}
 	)
@@ -363,7 +390,7 @@ if(HAIKU)
     target_link_libraries(keepassx_core network)
 endif()
 if(UNIX AND NOT APPLE)
-    target_link_libraries(keepassx_core Qt5::DBus)
+    target_link_libraries(keepassx_core Qt5::DBus ${LIBUSB_LIBRARIES})
     if(WITH_XC_X11)
         target_link_libraries(keepassx_core Qt5::X11Extras X11)
     endif()
@@ -441,6 +468,7 @@ if(WIN32)
     string(REGEX REPLACE "-.*$" "" KEEPASSXC_VERSION_CLEAN ${KEEPASSXC_VERSION})
 
     set(CPACK_GENERATOR "ZIP;WIX")
+    set(CPACK_COMPONENTS_ALL "")
     set(CPACK_STRIP_FILES OFF)
     set(CPACK_PACKAGE_FILE_NAME "${PROGNAME}-${KEEPASSXC_VERSION}-${OUTPUT_FILE_POSTFIX}")
     set(CPACK_PACKAGE_INSTALL_DIRECTORY ${PROGNAME})

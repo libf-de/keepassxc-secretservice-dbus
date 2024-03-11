@@ -231,14 +231,6 @@
       <string>&amp;Recent Databases</string>
      </property>
     </widget>
-    <widget class="QMenu" name="menuImport">
-     <property name="title">
-      <string>&amp;Import</string>
-     </property>
-     <addaction name="actionImportCsv"/>
-     <addaction name="actionImportOpVault"/>
-     <addaction name="actionImportKeePass1"/>
-    </widget>
     <widget class="QMenu" name="menuExport">
      <property name="title">
       <string>&amp;Export</string>
@@ -262,8 +254,11 @@
     <addaction name="actionDatabaseSettings"/>
     <addaction name="actionDatabaseSecurity"/>
     <addaction name="separator"/>
+    <addaction name="actionPasskeys"/>
+    <addaction name="actionImportPasskey"/>
+    <addaction name="separator"/>
     <addaction name="actionDatabaseMerge"/>
-    <addaction name="menuImport"/>
+    <addaction name="actionImport"/>
     <addaction name="menuExport"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
@@ -338,6 +333,8 @@
     <addaction name="menuTags"/>
     <addaction name="separator"/>
     <addaction name="actionEntryAutoType"/>
+    <addaction name="separator"/>
+    <addaction name="actionEntryImportPasskey"/>
     <addaction name="separator"/>
     <addaction name="actionEntryOpenUrl"/>
     <addaction name="actionEntryDownloadIcon"/>
@@ -620,6 +617,34 @@
     <enum>QAction::NoRole</enum>
    </property>
   </action>
+  <action name="actionPasskeys">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Passkeys…</string>
+   </property>
+   <property name="toolTip">
+    <string>Passkeys</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionImportPasskey">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Import Passkey</string>
+   </property>
+   <property name="toolTip">
+    <string>Import Passkey</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
   <action name="actionEntryClone">
    <property name="enabled">
     <bool>false</bool>
@@ -697,6 +722,14 @@
    </property>
    <property name="text">
     <string>Perform &amp;Auto-Type</string>
+   </property>
+  </action>
+  <action name="actionEntryImportPasskey">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Import Passkey</string>
    </property>
   </action>
   <action name="actionEntryAutoTypeUsername">
@@ -1120,6 +1153,19 @@
    </property>
    <property name="text">
     <string>Allow Screen Capture</string>
+   </property>
+  </action>
+  <action name="actionImport1PUX">
+   <property name="text">
+    <string>1Password 1PUX...</string>
+   </property>
+   <property name="toolTip">
+    <string>Import a 1Password 1PUX file</string>
+   </property>
+  </action>
+  <action name="actionImport">
+   <property name="text">
+    <string>Import…</string>
    </property>
   </action>
  </widget>

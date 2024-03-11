@@ -17,14 +17,15 @@
 
 #include "TotpExportSettingsDialog.h"
 
+#include "core/Totp.h"
 #include "gui/Clipboard.h"
 #include "gui/MainWindow.h"
 #include "gui/SquareSvgWidget.h"
 #include "qrcode/QrCode.h"
-#include "totp/totp.h"
 
 #include <QBoxLayout>
 #include <QBuffer>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>

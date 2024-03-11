@@ -219,11 +219,12 @@ void EntryView::displaySearch(const QList<Entry*>& entries)
     m_model->setEntries(entries);
     header()->showSection(EntryModel::ParentGroup);
 
+    setFirstEntryActive();
+
     // Reset sort column to 'Group', overrides DatabaseWidgetStateSync
     m_sortModel->sort(EntryModel::ParentGroup, Qt::AscendingOrder);
     sortByColumn(EntryModel::ParentGroup, Qt::AscendingOrder);
 
-    setFirstEntryActive();
     m_inSearchMode = true;
 }
 
@@ -545,6 +546,8 @@ void EntryView::startDrag(Qt::DropActions supportedActions)
         listWidget.addItem(item);
     }
 
+    listWidget.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    listWidget.setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     listWidget.setStyleSheet("QListWidget { background-color: palette(highlight); border: 1px solid palette(dark); "
                              "padding: 4px; color: palette(highlighted-text); }");
     auto width = listWidget.sizeHintForColumn(0) + 2 * listWidget.frameWidth();

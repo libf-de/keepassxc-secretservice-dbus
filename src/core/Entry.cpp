@@ -24,7 +24,7 @@
 #include "core/Metadata.h"
 #include "core/PasswordHealth.h"
 #include "core/Tools.h"
-#include "totp/totp.h"
+#include "core/Totp.h"
 
 #include <QDir>
 #include <QRegularExpression>
@@ -377,16 +377,19 @@ QString Entry::url() const
 QStringList Entry::getAllUrls() const
 {
     QStringList urlList;
+    auto entryUrl = url();
 
-    if (!url().isEmpty()) {
-        urlList << url();
+    if (!entryUrl.isEmpty()) {
+        urlList << (EntryAttributes::matchReference(entryUrl).hasMatch() ? resolveMultiplePlaceholders(entryUrl)
+                                                                         : entryUrl);
     }
 
     for (const auto& key : m_attributes->keys()) {
-        if (key.startsWith("KP2A_URL")) {
+        if (key.startsWith(EntryAttributes::AdditionalUrlAttribute)
+            || key == QString("%1_RELYING_PARTY").arg(EntryAttributes::PasskeyAttribute)) {
             auto additionalUrl = m_attributes->value(key);
             if (!additionalUrl.isEmpty()) {
-                urlList << additionalUrl;
+                urlList << resolveMultiplePlaceholders(additionalUrl);
             }
         }
     }
@@ -460,7 +463,7 @@ bool Entry::isRecycled() const
         return false;
     }
 
-    return m_group == db->metadata()->recycleBin() || m_group->isRecycled();
+    return m_group->isRecycled();
 }
 
 bool Entry::isAttributeReference(const QString& key) const
@@ -543,6 +546,11 @@ bool Entry::hasTotp() const
     return !m_data.totpSettings.isNull();
 }
 
+bool Entry::hasPasskey() const
+{
+    return m_attributes->hasPasskey();
+}
+
 QString Entry::totp() const
 {
     if (hasTotp()) {
@@ -558,7 +566,7 @@ void Entry::setTotp(QSharedPointer<Totp::Settings> settings)
     m_attributes->remove(Totp::ATTRIBUTE_SEED);
     m_attributes->remove(Totp::ATTRIBUTE_SETTINGS);
 
-    if (settings->key.isEmpty()) {
+    if (!settings || settings->key.isEmpty()) {
         m_data.totpSettings.reset();
     } else {
         m_data.totpSettings = std::move(settings);
@@ -1271,10 +1279,10 @@ void Entry::setGroup(Group* group, bool trackPrevious)
         }
     }
 
+    QObject::setParent(group);
+
     m_group = group;
     group->addEntry(this);
-
-    QObject::setParent(group);
 
     if (m_updateTimeinfo) {
         m_data.timeInfo.setLocationChanged(Clock::currentDateTimeUtc());

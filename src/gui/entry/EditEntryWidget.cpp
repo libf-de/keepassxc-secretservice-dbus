@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2021 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -114,6 +114,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     m_entryModifiedTimer.setSingleShot(true);
     m_entryModifiedTimer.setInterval(0);
     connect(&m_entryModifiedTimer, &QTimer::timeout, this, [this] {
+        // TODO: Upon refactor of this widget, this needs to merge unsaved changes in the UI
         if (isVisible() && m_entry) {
             setForms(m_entry);
         }
@@ -330,11 +331,11 @@ void EditEntryWidget::insertURL()
 {
     Q_ASSERT(!m_history);
 
-    QString name(BrowserService::ADDITIONAL_URL);
+    QString name(EntryAttributes::AdditionalUrlAttribute);
     int i = 1;
 
     while (m_entryAttributes->keys().contains(name)) {
-        name = QString("%1_%2").arg(BrowserService::ADDITIONAL_URL, QString::number(i));
+        name = QString("%1_%2").arg(EntryAttributes::AdditionalUrlAttribute, QString::number(i));
         i++;
     }
 
@@ -704,6 +705,13 @@ void EditEntryWidget::toKeeAgentSettings(KeeAgentSettings& settings) const
     settings.setSaveAttachmentToTempFile(m_sshAgentSettings.saveAttachmentToTempFile());
 }
 
+void EditEntryWidget::updateTotp()
+{
+    if (m_entry) {
+        m_attributesModel->setEntryAttributes(m_entry->attributes());
+    }
+}
+
 void EditEntryWidget::browsePrivateKey()
 {
     auto fileName = fileDialog()->getOpenFileName(this, tr("Select private key"), FileDialog::getLastDir("sshagent"));
@@ -828,8 +836,6 @@ void EditEntryWidget::loadEntry(Entry* entry,
     m_create = create;
     m_history = history;
 
-    connect(m_entry, &Entry::modified, this, [this] { m_entryModifiedTimer.start(); });
-
     if (history) {
         setHeadline(QString("%1 \u2022 %2").arg(parentName, tr("Entry history")));
     } else {
@@ -837,6 +843,8 @@ void EditEntryWidget::loadEntry(Entry* entry,
             setHeadline(QString("%1 \u2022 %2").arg(parentName, tr("Add entry")));
         } else {
             setHeadline(QString("%1 \u2022 %2 \u2022 %3").arg(parentName, entry->title(), tr("Edit entry")));
+            // Reload entry details if changed outside of the edit dialog
+            connect(m_entry, &Entry::modified, this, [this] { m_entryModifiedTimer.start(); });
         }
     }
 
@@ -1143,6 +1151,7 @@ bool EditEntryWidget::commitEntry()
     }
 
     m_historyModel->setEntries(m_entry->historyItems(), m_entry);
+    setPageHidden(m_historyWidget, m_history || m_entry->historyItems().count() < 1);
     m_advancedUi->attachmentsWidget->linkAttachments(m_entry->attachments());
 
     showMessage(tr("Entry updated successfully."), MessageWidget::Positive);

@@ -85,6 +85,7 @@ public:
     QString name() const;
     QString notes() const;
     QString tags() const;
+    QString fullPath() const;
     int iconNumber() const;
     const QUuid& iconUuid() const;
     const TimeInfo& timeInfo() const;
@@ -229,9 +230,7 @@ private:
 
     bool m_updateTimeinfo;
 
-    friend void Database::setRootGroup(Group* group);
-    friend Entry::~Entry();
-    friend void Entry::setGroup(Group* group, bool trackPrevious);
+    friend Group* Database::setRootGroup(Group* group);
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Group::CloneFlags)

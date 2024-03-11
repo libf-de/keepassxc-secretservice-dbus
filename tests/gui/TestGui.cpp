@@ -87,6 +87,7 @@ void TestGui::initTestCase()
 {
     QVERIFY(Crypto::init());
     Config::createTempFileInstance();
+    QLocale::setDefault(QLocale::c());
     Application::bootstrap();
 
     m_mainWindow.reset(new MainWindow());
@@ -139,6 +140,7 @@ void TestGui::init()
         databaseOpenWidget->findChild<PasswordWidget*>("editPassword")->findChild<QLineEdit*>("passwordEdit");
     QVERIFY(editPassword);
     editPassword->setFocus();
+    QTRY_VERIFY(editPassword->hasFocus());
 
     QTest::keyClicks(editPassword, "a");
     QTest::keyClick(editPassword, Qt::Key_Enter);
@@ -1078,6 +1080,13 @@ void TestGui::testSearch()
     QCOMPARE(groupView->currentGroup(), m_db->rootGroup());
     QVERIFY(!m_dbWidget->isSearchActive());
 
+    // check if first entry is selected after search
+    QTest::keyClicks(searchTextEdit, "some");
+    QTRY_VERIFY(m_dbWidget->isSearchActive());
+    QTRY_COMPARE(entryView->selectedEntries().length(), 1);
+    QModelIndex index_current = entryView->indexFromEntry(entryView->currentEntry());
+    QTRY_COMPARE(index_current.row(), 0);
+
     // Try to edit the first entry from the search view
     // Refocus back to search edit
     QTest::mouseClick(searchTextEdit, Qt::LeftButton);
@@ -1478,28 +1487,6 @@ void TestGui::testDatabaseSettings()
     QTRY_COMPARE(m_db->kdf()->rounds(), 123456);
 
     checkSaveDatabase();
-}
-
-void TestGui::testKeePass1Import()
-{
-    fileDialog()->setNextFileName(QString(KEEPASSX_TEST_DATA_DIR).append("/basic.kdb"));
-    triggerAction("actionImportKeePass1");
-
-    auto* keepass1OpenWidget = m_tabWidget->currentDatabaseWidget()->findChild<QWidget*>("keepass1OpenWidget");
-    auto* editPassword =
-        keepass1OpenWidget->findChild<PasswordWidget*>("editPassword")->findChild<QLineEdit*>("passwordEdit");
-    QVERIFY(editPassword);
-
-    QTest::keyClicks(editPassword, "masterpw");
-    QTest::keyClick(editPassword, Qt::Key_Enter);
-
-    QTRY_COMPARE(m_tabWidget->count(), 2);
-    QTRY_COMPARE(m_tabWidget->tabText(m_tabWidget->currentIndex()), QString("basic [New Database]*"));
-
-    // Close the KeePass1 Database
-    MessageBox::setNextAnswer(MessageBox::No);
-    triggerAction("actionDatabaseClose");
-    QApplication::processEvents();
 }
 
 void TestGui::testDatabaseLocking()

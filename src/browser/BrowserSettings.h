@@ -1,7 +1,7 @@
 /*
- *  Copyright (C) 2013 Francois Ferrand
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2017 Sami Vänttinen <sami.vanttinen@protonmail.com>
- *  Copyright (C) 2021 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2013 Francois Ferrand
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BROWSERSETTINGS_H
-#define BROWSERSETTINGS_H
+#ifndef KEEPASSXC_BROWSERSETTINGS_H
+#define KEEPASSXC_BROWSERSETTINGS_H
 
 #include "NativeMessageInstaller.h"
 
@@ -51,6 +51,8 @@ public:
     void setSupportKphFields(bool supportKphFields);
     bool noMigrationPrompt();
     void setNoMigrationPrompt(bool prompt);
+    bool allowLocalhostWithPasskeys();
+    void setAllowLocalhostWithPasskeys(bool enabled);
 
     bool useCustomProxy();
     void setUseCustomProxy(bool enabled);
@@ -90,4 +92,4 @@ inline BrowserSettings* browserSettings()
     return BrowserSettings::instance();
 }
 
-#endif // BROWSERSETTINGS_H
+#endif // KEEPASSXC_BROWSERSETTINGS_H
