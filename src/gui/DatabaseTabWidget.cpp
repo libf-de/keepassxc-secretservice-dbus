@@ -57,7 +57,7 @@ DatabaseTabWidget::DatabaseTabWidget(QWidget* parent)
             m_dbWidgetStateSync, SLOT(setActive(DatabaseWidget*)));
     connect(autoType(), SIGNAL(globalAutoTypeTriggered(const QString&)), SLOT(performGlobalAutoType(const QString&)));
     connect(autoType(), SIGNAL(autotypeRetypeTimeout()), SLOT(relockPendingDatabase()));
-    connect(autoType(), SIGNAL(autotypeRejected()), SLOT(relockPendingDatabase()));
+    connect(autoType(), SIGNAL(autotypeFinished()), SLOT(relockPendingDatabase()));
     connect(m_databaseOpenDialog.data(), &DatabaseOpenDialog::dialogFinished,
             this, &DatabaseTabWidget::handleDatabaseUnlockDialogFinished);
     // clang-format on
@@ -274,6 +274,7 @@ DatabaseWidget* DatabaseTabWidget::importFile()
         if (newDb) {
             // Merge the imported db into the new one
             Merger merger(db.data(), newDb.data());
+            merger.setSkipDatabaseCustomData(true);
             merger.merge();
             // Show the new database
             auto dbWidget = new DatabaseWidget(newDb, this);

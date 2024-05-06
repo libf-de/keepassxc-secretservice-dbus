@@ -97,19 +97,15 @@ DatabaseOpenWidget::DatabaseOpenWidget(QWidget* parent)
     connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(openDatabase()));
     connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
 
-    connect(m_ui->addKeyFileLinkLabel, &QLabel::linkActivated, this, [&](const QString&) {
-        if (browseKeyFile()) {
-            toggleKeyFileComponent(true);
-        }
-    });
+    connect(m_ui->addKeyFileLinkLabel, &QLabel::linkActivated, this, &DatabaseOpenWidget::browseKeyFile);
     connect(m_ui->keyFileLineEdit, &PasswordWidget::textChanged, this, [&](const QString& text) {
-        if (text.isEmpty() && m_ui->keyFileLineEdit->isVisible()) {
-            toggleKeyFileComponent(false);
-        }
+        bool state = !text.isEmpty();
+        m_ui->addKeyFileLinkLabel->setVisible(!state);
+        m_ui->selectKeyFileComponent->setVisible(state);
     });
     connect(m_ui->useHardwareKeyCheckBox, &QCheckBox::toggled, m_ui->hardwareKeyCombo, &QComboBox::setEnabled);
 
-    toggleKeyFileComponent(false);
+    m_ui->selectKeyFileComponent->setVisible(false);
     toggleHardwareKeyComponent(false);
 
     QSizePolicy sp = m_ui->hardwareKeyProgress->sizePolicy();
@@ -152,12 +148,6 @@ DatabaseOpenWidget::~DatabaseOpenWidget()
 {
 }
 
-void DatabaseOpenWidget::toggleKeyFileComponent(bool state)
-{
-    m_ui->addKeyFileLinkLabel->setVisible(!state);
-    m_ui->selectKeyFileComponent->setVisible(state);
-}
-
 void DatabaseOpenWidget::toggleHardwareKeyComponent(bool state)
 {
     m_ui->hardwareKeyProgress->setVisible(false);
@@ -181,51 +171,50 @@ void DatabaseOpenWidget::toggleHardwareKeyComponent(bool state)
 bool DatabaseOpenWidget::event(QEvent* event)
 {
     bool ret = DialogyWidget::event(event);
+    auto type = event->type();
 
-    switch (event->type()) {
-    case QEvent::Show:
-    case QEvent::WindowActivate: {
+    if (type == QEvent::Show || type == QEvent::WindowActivate) {
         if (isOnQuickUnlockScreen() && (m_db.isNull() || !canPerformQuickUnlock())) {
             resetQuickUnlock();
         }
         toggleQuickUnlockScreen();
-        m_hideTimer.stop();
 
+        if (type == QEvent::Show) {
 #ifdef WITH_XC_YUBIKEY
 #ifdef Q_OS_WIN
-        m_deviceListener->registerHotplugCallback(true,
-                                                  true,
-                                                  YubiKeyInterfaceUSB::YUBICO_USB_VID,
-                                                  DeviceListener::MATCH_ANY,
-                                                  &DeviceListenerWin::DEV_CLS_KEYBOARD);
-        m_deviceListener->registerHotplugCallback(true,
-                                                  true,
-                                                  YubiKeyInterfaceUSB::ONLYKEY_USB_VID,
-                                                  DeviceListener::MATCH_ANY,
-                                                  &DeviceListenerWin::DEV_CLS_KEYBOARD);
+            m_deviceListener->registerHotplugCallback(true,
+                                                      true,
+                                                      YubiKeyInterfaceUSB::YUBICO_USB_VID,
+                                                      DeviceListener::MATCH_ANY,
+                                                      &DeviceListenerWin::DEV_CLS_KEYBOARD);
+            m_deviceListener->registerHotplugCallback(true,
+                                                      true,
+                                                      YubiKeyInterfaceUSB::ONLYKEY_USB_VID,
+                                                      DeviceListener::MATCH_ANY,
+                                                      &DeviceListenerWin::DEV_CLS_KEYBOARD);
 #else
-        m_deviceListener->registerHotplugCallback(true, true, YubiKeyInterfaceUSB::YUBICO_USB_VID);
-        m_deviceListener->registerHotplugCallback(true, true, YubiKeyInterfaceUSB::ONLYKEY_USB_VID);
+            m_deviceListener->registerHotplugCallback(true, true, YubiKeyInterfaceUSB::YUBICO_USB_VID);
+            m_deviceListener->registerHotplugCallback(true, true, YubiKeyInterfaceUSB::ONLYKEY_USB_VID);
 #endif
 #endif
+            m_hideTimer.stop();
+            pollHardwareKey();
+        }
 
-        return true;
-    }
-
-    case QEvent::Hide: {
+        ret = true;
+    } else if (type == QEvent::Hide || type == QEvent::WindowDeactivate) {
         // Schedule form clearing if we are hidden
-        if (!isVisible()) {
+        if (!m_hideTimer.isActive()) {
             m_hideTimer.start();
         }
 
 #ifdef WITH_XC_YUBIKEY
-        m_deviceListener->deregisterAllHotplugCallbacks();
+        if (type == QEvent::Hide) {
+            m_deviceListener->deregisterAllHotplugCallbacks();
+        }
 #endif
 
-        return true;
-    }
-
-    default:;
+        ret = true;
     }
 
     return ret;
@@ -247,7 +236,6 @@ void DatabaseOpenWidget::load(const QString& filename)
         auto lastKeyFiles = config()->get(Config::LastKeyFiles).toHash();
         if (lastKeyFiles.contains(m_filename)) {
             m_ui->keyFileLineEdit->setText(lastKeyFiles[m_filename].toString());
-            toggleKeyFileComponent(true);
         }
     }
 
@@ -270,9 +258,7 @@ void DatabaseOpenWidget::clearForms()
     m_ui->hardwareKeyCombo->clear();
     toggleQuickUnlockScreen();
 
-    QString error;
-    m_db.reset(new Database());
-    m_db->open(m_filename, nullptr, &error);
+    m_db.reset(new Database(m_filename));
 }
 
 QSharedPointer<Database> DatabaseOpenWidget::database()
@@ -328,6 +314,7 @@ void DatabaseOpenWidget::openDatabase()
             auto btn = msgBox->addButton(tr("Open database anyway"), QMessageBox::ButtonRole::AcceptRole);
             msgBox->setDefaultButton(btn);
             msgBox->addButton(QMessageBox::Cancel);
+            msgBox->layout()->setSizeConstraint(QLayout::SetMinimumSize);
             msgBox->exec();
             if (msgBox->clickedButton() != btn) {
                 m_db.reset(new Database());
@@ -497,7 +484,11 @@ bool DatabaseOpenWidget::browseKeyFile()
     if (filename.isEmpty()) {
         return false;
     }
-    FileDialog::saveLastDir("keyfile", filename, true);
+    if (config()->get(Config::RememberLastKeyFiles).toBool()) {
+        FileDialog::saveLastDir("keyfile", filename, true);
+    } else {
+        FileDialog::saveLastDir("keyfile", {});
+    }
 
     if (QFileInfo(filename).canonicalFilePath() == QFileInfo(m_filename).canonicalFilePath()) {
         MessageBox::warning(this,
@@ -535,7 +526,10 @@ void DatabaseOpenWidget::pollHardwareKey(bool manualTrigger)
     m_pollingHardwareKey = true;
     m_manualHardwareKeyRefresh = manualTrigger;
 
-    YubiKey::instance()->findValidKeysAsync();
+    // Add a delay, if this is an automatic trigger, to allow the USB device to settle as
+    // the device may not report a valid serial number immediately after plugging in
+    int delay = manualTrigger ? 0 : 500;
+    QTimer::singleShot(delay, this, [] { YubiKey::instance()->findValidKeysAsync(); });
 }
 
 void DatabaseOpenWidget::hardwareKeyResponse(bool found)
@@ -615,10 +609,16 @@ void DatabaseOpenWidget::toggleQuickUnlockScreen()
 {
     if (canPerformQuickUnlock()) {
         m_ui->centralStack->setCurrentIndex(1);
-        m_ui->quickUnlockButton->setFocus();
+        // Work around qt issue where focus is stolen even if not visible
+        if (m_ui->quickUnlockButton->isVisible()) {
+            m_ui->quickUnlockButton->setFocus();
+        }
     } else {
         m_ui->centralStack->setCurrentIndex(0);
-        m_ui->editPassword->setFocus();
+        // Work around qt issue where focus is stolen even if not visible
+        if (m_ui->editPassword->isVisible()) {
+            m_ui->editPassword->setFocus();
+        }
     }
 }
 

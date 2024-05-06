@@ -33,6 +33,10 @@
 #include <QTemporaryFile>
 #include <QTimer>
 
+#ifdef Q_OS_WIN
+#include <Windows.h>
+#endif
+
 QHash<QUuid, QPointer<Database>> Database::s_uuidMap;
 
 Database::Database()
@@ -270,7 +274,7 @@ bool Database::saveAs(const QString& filePath, SaveAction action, const QString&
 
     // Add random data to prevent side-channel data deduplication attacks
     int length = Random::instance()->randomUIntRange(64, 512);
-    m_metadata->customData()->set("KPXC_RANDOM_SLUG", Random::instance()->randomArray(length).toHex());
+    m_metadata->customData()->set(CustomData::RandomSlug, Random::instance()->randomArray(length).toHex());
 
     // Prevent destructive operations while saving
     QMutexLocker locker(&m_saveMutex);
@@ -278,6 +282,11 @@ bool Database::saveAs(const QString& filePath, SaveAction action, const QString&
     QFileInfo fileInfo(filePath);
     auto realFilePath = fileInfo.exists() ? fileInfo.canonicalFilePath() : fileInfo.absoluteFilePath();
     bool isNewFile = !QFile::exists(realFilePath);
+
+#ifdef Q_OS_WIN
+    bool isHidden = fileInfo.isHidden();
+#endif
+
     bool ok = AsyncTask::runAndWaitForFuture([&] { return performSave(realFilePath, action, backupFilePath, error); });
     if (ok) {
         setFilePath(filePath);
@@ -285,6 +294,13 @@ bool Database::saveAs(const QString& filePath, SaveAction action, const QString&
         if (isNewFile) {
             QFile::setPermissions(realFilePath, QFile::ReadUser | QFile::WriteUser);
         }
+
+#ifdef Q_OS_WIN
+        if (isHidden) {
+            SetFileAttributes(realFilePath.toStdString().c_str(), FILE_ATTRIBUTE_HIDDEN);
+        }
+#endif
+
         m_fileWatcher->start(realFilePath, 30, 1);
     } else {
         // Saving failed, don't rewatch file since it does not represent our database
@@ -394,6 +410,9 @@ bool Database::performSave(const QString& filePath, SaveAction action, const QSt
 
 bool Database::writeDatabase(QIODevice* device, QString* error)
 {
+    Q_ASSERT(m_data.key);
+    Q_ASSERT(m_data.transformedDatabaseKey);
+
     PasswordKey oldTransformedKey;
     if (m_data.key->isEmpty()) {
         oldTransformedKey.setRawKey(m_data.transformedDatabaseKey->rawKey());
@@ -749,18 +768,29 @@ Database::CompressionAlgorithm Database::compressionAlgorithm() const
 
 QByteArray Database::transformedDatabaseKey() const
 {
+    Q_ASSERT(m_data.transformedDatabaseKey);
+    if (!m_data.transformedDatabaseKey) {
+        return {};
+    }
     return m_data.transformedDatabaseKey->rawKey();
 }
 
 QByteArray Database::challengeResponseKey() const
 {
+    Q_ASSERT(m_data.challengeResponseKey);
+    if (!m_data.challengeResponseKey) {
+        return {};
+    }
     return m_data.challengeResponseKey->rawKey();
 }
 
 bool Database::challengeMasterSeed(const QByteArray& masterSeed)
 {
+    Q_ASSERT(m_data.key);
+    Q_ASSERT(m_data.masterSeed);
+
     m_keyError.clear();
-    if (m_data.key) {
+    if (m_data.key && m_data.masterSeed) {
         m_data.masterSeed->setRawKey(masterSeed);
         QByteArray response;
         bool ok = m_data.key->challenge(masterSeed, response, &m_keyError);
@@ -806,8 +836,7 @@ bool Database::setKey(const QSharedPointer<const CompositeKey>& key,
     m_keyError.clear();
 
     if (!key) {
-        m_data.key.reset();
-        m_data.transformedDatabaseKey.reset(new PasswordKey());
+        m_data.resetKeys();
         return true;
     }
 

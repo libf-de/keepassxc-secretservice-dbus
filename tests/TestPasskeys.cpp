@@ -459,9 +459,9 @@ void TestPasskeys::testExtensions()
     auto result = passkeyUtils()->buildExtensionData(extensions);
 
     BrowserCbor cbor;
-    auto extensionJson = cbor.getJsonFromCborData(result);
-    auto uvmArray = extensionJson["uvm"].toArray();
-    QCOMPARE(extensionJson["credProps"].toObject()["rk"].toBool(), true);
+    auto extensionJson = cbor.getJsonFromCborData(result.extensionData);
+    auto uvmArray = result.extensionObject["uvm"].toArray();
+    QCOMPARE(result.extensionObject["credProps"].toObject()["rk"].toBool(), true);
     QCOMPARE(uvmArray.size(), 1);
     QCOMPARE(uvmArray.first().toArray().size(), 3);
 
@@ -470,10 +470,10 @@ void TestPasskeys::testExtensions()
     auto partialData = passkeyUtils()->buildExtensionData(partial);
     auto faultyData = passkeyUtils()->buildExtensionData(faulty);
 
-    auto partialJson = cbor.getJsonFromCborData(partialData);
+    auto partialJson = cbor.getJsonFromCborData(partialData.extensionData);
     QCOMPARE(partialJson["uvm"].toArray().size(), 1);
 
-    auto faultyJson = cbor.getJsonFromCborData(faultyData);
+    auto faultyJson = cbor.getJsonFromCborData(faultyData.extensionData);
     QCOMPARE(faultyJson.size(), 0);
 }
 
@@ -573,17 +573,18 @@ void TestPasskeys::testRpIdValidation()
     QString result;
     auto allowedIdentical = passkeyUtils()->validateRpId(QString("example.com"), QString("example.com"), &result);
     QCOMPARE(result, QString("example.com"));
-    QVERIFY(allowedIdentical == 0);
+    QVERIFY(allowedIdentical == PASSKEYS_SUCCESS);
 
     result.clear();
     auto allowedSubdomain = passkeyUtils()->validateRpId(QString("example.com"), QString("www.example.com"), &result);
     QCOMPARE(result, QString("example.com"));
-    QVERIFY(allowedSubdomain == 0);
+    QVERIFY(allowedSubdomain == PASSKEYS_SUCCESS);
 
     result.clear();
-    auto emptyRpId = passkeyUtils()->validateRpId({}, QString("example.com"), &result);
-    QCOMPARE(result, QString(""));
-    QVERIFY(emptyRpId == ERROR_PASSKEYS_DOMAIN_RPID_MISMATCH);
+    QJsonValue emptyValue;
+    auto emptyRpId = passkeyUtils()->validateRpId(emptyValue, QString("example.com"), &result);
+    QCOMPARE(result, QString("example.com"));
+    QVERIFY(emptyRpId == PASSKEYS_SUCCESS);
 
     result.clear();
     auto ipRpId = passkeyUtils()->validateRpId(QString("127.0.0.1"), QString("example.com"), &result);

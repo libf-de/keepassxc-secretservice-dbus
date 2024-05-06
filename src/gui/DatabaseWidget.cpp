@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ * Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  * Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -214,6 +214,10 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     connectDatabaseSignals();
 
     m_blockAutoSave = false;
+
+    m_autosaveTimer = new QTimer(this);
+    m_autosaveTimer->setSingleShot(true);
+    connect(m_autosaveTimer, SIGNAL(timeout()), this, SLOT(onAutosaveDelayTimeout()));
 
     m_searchLimitGroup = config()->get(Config::SearchLimitGroup).toBool();
 
@@ -967,7 +971,11 @@ void DatabaseWidget::openUrlForEntry(Entry* entry)
     } else {
         QUrl url = QUrl::fromUserInput(entry->resolveMultiplePlaceholders(entry->url()));
         if (!url.isEmpty()) {
+#ifdef KEEPASSXC_DIST_APPIMAGE
+            QProcess::execute("xdg-open", {url.toString(QUrl::FullyEncoded)});
+#else
             QDesktopServices::openUrl(url);
+#endif
 
             if (config()->get(Config::MinimizeOnOpenUrl).toBool()) {
                 getMainWindow()->minimizeOrHide();
@@ -1407,7 +1415,7 @@ void DatabaseWidget::switchToPasskeys()
 
 void DatabaseWidget::showImportPasskeyDialog(bool isEntry)
 {
-    PasskeyImporter passkeyImporter;
+    PasskeyImporter passkeyImporter(this);
 
     if (isEntry) {
         auto currentEntry = currentSelectedEntry();
@@ -1561,13 +1569,42 @@ void DatabaseWidget::onGroupChanged()
 
 void DatabaseWidget::onDatabaseModified()
 {
-    if (!m_blockAutoSave && config()->get(Config::AutoSaveAfterEveryChange).toBool()) {
+    refreshSearch();
+    int autosaveDelayMs = m_db->metadata()->autosaveDelayMin() * 60 * 1000; // min to msec for QTimer
+    bool autosaveAfterEveryChangeConfig = config()->get(Config::AutoSaveAfterEveryChange).toBool();
+    if (autosaveDelayMs > 0 && autosaveAfterEveryChangeConfig) {
+        // reset delay when modified
+        m_autosaveTimer->start(autosaveDelayMs);
+        return;
+    }
+    if (!m_blockAutoSave && autosaveAfterEveryChangeConfig) {
         save();
     } else {
         // Only block once, then reset
         m_blockAutoSave = false;
     }
-    refreshSearch();
+}
+
+void DatabaseWidget::onAutosaveDelayTimeout()
+{
+    const bool isAutosaveDelayEnabled = m_db->metadata()->autosaveDelayMin() > 0;
+    const bool autosaveAfterEveryChangeConfig = config()->get(Config::AutoSaveAfterEveryChange).toBool();
+    if (!(isAutosaveDelayEnabled && autosaveAfterEveryChangeConfig)) {
+        // User might disable the delay/autosave while the timer is running
+        return;
+    }
+    if (!m_blockAutoSave) {
+        save();
+    } else {
+        // Only block once, then reset
+        m_blockAutoSave = false;
+    }
+}
+
+void DatabaseWidget::triggerAutosaveTimer()
+{
+    m_autosaveTimer->stop();
+    QMetaObject::invokeMethod(m_autosaveTimer, "timeout");
 }
 
 void DatabaseWidget::onDatabaseNonDataChanged()
@@ -1718,9 +1755,17 @@ bool DatabaseWidget::lock()
 
     emit databaseLockRequested();
 
-    // ignore event if we are active and a modal dialog is still open (such as a message box or file dialog)
-    if (isVisible() && QApplication::activeModalWidget()) {
-        return false;
+    // Force close any modal widgets associated with this widget
+    auto modalWidget = QApplication::activeModalWidget();
+    if (modalWidget) {
+        auto parent = modalWidget->parentWidget();
+        while (parent) {
+            if (parent == this) {
+                modalWidget->close();
+                break;
+            }
+            parent = parent->parentWidget();
+        }
     }
 
     clipboard()->clearCopiedText();
@@ -2037,6 +2082,7 @@ bool DatabaseWidget::save()
     if (performSave(errorMessage)) {
         m_saveAttempts = 0;
         m_blockAutoSave = false;
+        m_autosaveTimer->stop(); // stop autosave delay to avoid triggering another save
         return true;
     }
 

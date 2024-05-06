@@ -31,6 +31,7 @@
 #include <QToolBar>
 
 #include "config-keepassx-tests.h"
+#include "core/PasswordHealth.h"
 #include "core/Tools.h"
 #include "crypto/Crypto.h"
 #include "gui/ApplicationSettingsWidget.h"
@@ -191,7 +192,7 @@ void TestGui::testSettingsDefaultTabOrder()
     QVERIFY(dbSettingsWidget->isVisible());
     QCOMPARE(dbSettingsWidget->findChild<CategoryListWidget*>("categoryList")->currentCategory(), 0);
     for (auto* w : dbSettingsWidget->findChildren<QTabWidget*>()) {
-        if (w->currentIndex() != 0) {
+        if (w->currentIndex() != 0 && w->objectName() != "encryptionSettingsTabWidget") {
             QFAIL("Database settings contain QTabWidgets whose default index is not 0");
         }
     }
@@ -210,12 +211,16 @@ void TestGui::testCreateDatabase()
         QTest::keyClick(wizard, Qt::Key_Enter);
         QCOMPARE(wizard->currentId(), 1);
 
+        // Check that basic encryption settings are visible
         auto decryptionTimeSlider = wizard->currentPage()->findChild<QSlider*>("decryptionTimeSlider");
         auto algorithmComboBox = wizard->currentPage()->findChild<QComboBox*>("algorithmComboBox");
         QTRY_VERIFY(decryptionTimeSlider->isVisible());
         QVERIFY(!algorithmComboBox->isVisible());
-        auto advancedToggle = wizard->currentPage()->findChild<QPushButton*>("advancedSettingsButton");
-        QTest::mouseClick(advancedToggle, Qt::MouseButton::LeftButton);
+
+        // Set the encryption settings to the advanced view
+        auto encryptionSettings = wizard->currentPage()->findChild<QTabWidget*>("encryptionSettingsTabWidget");
+        auto advancedTab = encryptionSettings->findChild<QWidget*>("advancedTab");
+        encryptionSettings->setCurrentWidget(advancedTab);
         QTRY_VERIFY(!decryptionTimeSlider->isVisible());
         QVERIFY(algorithmComboBox->isVisible());
 
@@ -284,7 +289,10 @@ void TestGui::testCreateDatabase()
         tmpFile.close();
         fileDialog()->setNextFileName(tmpFile.fileName());
 
+        // click Continue on the warning due to weak password
+        MessageBox::setNextAnswer(MessageBox::ContinueWithWeakPass);
         QTest::keyClick(fileEdit, Qt::Key::Key_Enter);
+
         tmpFile.remove(););
 
     triggerAction("actionDatabaseNew");
@@ -682,43 +690,33 @@ void TestGui::testAddEntry()
 void TestGui::testPasswordEntryEntropy_data()
 {
     QTest::addColumn<QString>("password");
-    QTest::addColumn<QString>("expectedEntropyLabel");
     QTest::addColumn<QString>("expectedStrengthLabel");
 
     QTest::newRow("Empty password") << ""
-                                    << "Entropy: 0.00 bit"
                                     << "Password Quality: Poor";
 
     QTest::newRow("Well-known password") << "hello"
-                                         << "Entropy: 6.38 bit"
                                          << "Password Quality: Poor";
 
     QTest::newRow("Password composed of well-known words.") << "helloworld"
-                                                            << "Entropy: 13.10 bit"
                                                             << "Password Quality: Poor";
 
     QTest::newRow("Password composed of well-known words with number.") << "password1"
-                                                                        << "Entropy: 4.00 bit"
                                                                         << "Password Quality: Poor";
 
     QTest::newRow("Password out of small character space.") << "D0g.................."
-                                                            << "Entropy: 19.02 bit"
                                                             << "Password Quality: Poor";
 
     QTest::newRow("XKCD, easy substitutions.") << "Tr0ub4dour&3"
-                                               << "Entropy: 30.87 bit"
                                                << "Password Quality: Poor";
 
     QTest::newRow("XKCD, word generator.") << "correcthorsebatterystaple"
-                                           << "Entropy: 47.98 bit"
                                            << "Password Quality: Weak";
 
     QTest::newRow("Random characters, medium length.") << "YQC3kbXbjC652dTDH"
-                                                       << "Entropy: 95.83 bit"
                                                        << "Password Quality: Good";
 
     QTest::newRow("Random characters, long.") << "Bs5ZFfthWzR8DGFEjaCM6bGqhmCT4km"
-                                              << "Entropy: 174.59 bit"
                                               << "Password Quality: Excellent";
 
     QTest::newRow("Long password using Zxcvbn chunk estimation")
@@ -726,7 +724,6 @@ void TestGui::testPasswordEntryEntropy_data()
            "ashamed-anatomy-daybed-jam-swear-strudel-neatness-stalemate-unbundle-flavored-relation-emergency-underrate-"
            "registry-getting-award-unveiled-unshaken-stagnate-cartridge-magnitude-ointment-hardener-enforced-scrubbed-"
            "radial-fiddling-envelope-unpaved-moisture-unused-crawlers-quartered-crushed-kangaroo-tiptop-doily"
-        << "Entropy: 1205.85 bit"
         << "Password Quality: Excellent";
 
     QTest::newRow("Longer password above Zxcvbn threshold")
@@ -744,7 +741,6 @@ void TestGui::testPasswordEntryEntropy_data()
            "disparate-decorated-washroom-threefold-muzzle-buckwheat-kerosene-swell-why-reprocess-correct-shady-"
            "impatient-slit-banshee-scrubbed-dreadful-unlocking-urologist-hurried-citable-fragment-septic-lapped-"
            "prankish-phantom-unpaved-moisture-unused-crawlers-quartered-crushed-kangaroo-lapel-emporium-renounce"
-        << "Entropy: 4210.27 bit"
         << "Password Quality: Excellent";
 }
 
@@ -793,11 +789,14 @@ void TestGui::testPasswordEntryEntropy()
         auto* strengthLabel = pwGeneratorWidget->findChild<QLabel*>("strengthLabel");
 
         QFETCH(QString, password);
-        QFETCH(QString, expectedEntropyLabel);
         QFETCH(QString, expectedStrengthLabel);
 
+        // Dynamically calculate entropy due to variances with zxcvbn wordlists
+        PasswordHealth health(password);
+        auto expectedEntropy = QString("Entropy: %1 bit").arg(QString::number(health.entropy(), 'f', 2));
+
         generatedPassword->setText(password);
-        QCOMPARE(entropyLabel->text(), expectedEntropyLabel);
+        QCOMPARE(entropyLabel->text(), expectedEntropy);
         QCOMPARE(strengthLabel->text(), expectedStrengthLabel);
 
         QTest::mouseClick(generatedPassword, Qt::LeftButton);
@@ -1475,18 +1474,160 @@ void TestGui::testDatabaseSettings()
     m_db->metadata()->setName("testDatabaseSettings");
     triggerAction("actionDatabaseSettings");
     auto* dbSettingsDialog = m_dbWidget->findChild<QWidget*>("databaseSettingsDialog");
-    auto* transformRoundsSpinBox = dbSettingsDialog->findChild<QSpinBox*>("transformRoundsSpinBox");
-    auto advancedToggle = dbSettingsDialog->findChild<QCheckBox*>("advancedSettingsToggle");
+    auto* dbSettingsCategoryList = dbSettingsDialog->findChild<CategoryListWidget*>("categoryList");
+    auto* dbSettingsStackedWidget = dbSettingsDialog->findChild<QStackedWidget*>("stackedWidget");
+    auto* autosaveDelayCheckBox = dbSettingsDialog->findChild<QCheckBox*>("autosaveDelayCheckBox");
+    auto* autosaveDelaySpinBox = dbSettingsDialog->findChild<QSpinBox*>("autosaveDelaySpinBox");
+    auto* dbSettingsButtonBox = dbSettingsDialog->findChild<QDialogButtonBox*>("buttonBox");
+    int autosaveDelayTestValue = 2;
 
-    advancedToggle->setChecked(true);
+    dbSettingsCategoryList->setCurrentCategory(1); // go into security category
+    dbSettingsStackedWidget->findChild<QTabWidget*>()->setCurrentIndex(1); // go into encryption tab
+
+    auto encryptionSettings = dbSettingsDialog->findChild<QTabWidget*>("encryptionSettingsTabWidget");
+    auto advancedTab = encryptionSettings->findChild<QWidget*>("advancedTab");
+    encryptionSettings->setCurrentWidget(advancedTab);
+
     QApplication::processEvents();
 
-    QVERIFY(transformRoundsSpinBox != nullptr);
+    auto transformRoundsSpinBox = advancedTab->findChild<QSpinBox*>("transformRoundsSpinBox");
+    QVERIFY(transformRoundsSpinBox);
+    QVERIFY(transformRoundsSpinBox->isVisible());
+
     transformRoundsSpinBox->setValue(123456);
     QTest::keyClick(transformRoundsSpinBox, Qt::Key_Enter);
     QTRY_COMPARE(m_db->kdf()->rounds(), 123456);
 
+    // test disable and default values for maximum history items and size
+    triggerAction("actionDatabaseSettings");
+    auto* historyMaxItemsCheckBox = dbSettingsDialog->findChild<QCheckBox*>("historyMaxItemsCheckBox");
+    auto* historyMaxItemsSpinBox = dbSettingsDialog->findChild<QSpinBox*>("historyMaxItemsSpinBox");
+    auto* historyMaxSizeCheckBox = dbSettingsDialog->findChild<QCheckBox*>("historyMaxSizeCheckBox");
+    auto* historyMaxSizeSpinBox = dbSettingsDialog->findChild<QSpinBox*>("historyMaxSizeSpinBox");
+    // test defaults
+    QCOMPARE(historyMaxItemsSpinBox->value(), Metadata::DefaultHistoryMaxItems);
+    QCOMPARE(historyMaxSizeSpinBox->value(), qRound(Metadata::DefaultHistoryMaxSize / qreal(1024 * 1024)));
+    // disable and test setting as well
+    historyMaxItemsCheckBox->setChecked(false);
+    historyMaxSizeCheckBox->setChecked(false);
+    QTest::mouseClick(dbSettingsButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+    QTRY_COMPARE(m_db->metadata()->historyMaxItems(), -1);
+    QTRY_COMPARE(m_db->metadata()->historyMaxSize(), -1);
+    // then open to check the saved disabled state in gui
+    triggerAction("actionDatabaseSettings");
+    QCOMPARE(historyMaxItemsCheckBox->isChecked(), false);
+    QCOMPARE(historyMaxSizeCheckBox->isChecked(), false);
+    QTest::mouseClick(dbSettingsButtonBox->button(QDialogButtonBox::Cancel), Qt::LeftButton);
+
+    // Test loading default values and setting autosaveDelay
+    triggerAction("actionDatabaseSettings");
+    QVERIFY(autosaveDelayCheckBox->isChecked() == false);
+    autosaveDelayCheckBox->toggle();
+    autosaveDelaySpinBox->setValue(autosaveDelayTestValue);
+    QTest::mouseClick(dbSettingsButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+    QTRY_COMPARE(m_db->metadata()->autosaveDelayMin(), autosaveDelayTestValue);
+
     checkSaveDatabase();
+
+    // Test loading autosaveDelay non-default values
+    triggerAction("actionDatabaseSettings");
+    QTRY_COMPARE(autosaveDelayCheckBox->isChecked(), true);
+    QTRY_COMPARE(autosaveDelaySpinBox->value(), autosaveDelayTestValue);
+    QTest::mouseClick(dbSettingsButtonBox->button(QDialogButtonBox::Cancel), Qt::LeftButton);
+
+    // test autosave delay
+
+    // 1 init
+    config()->set(Config::AutoSaveAfterEveryChange, true);
+    QSignalSpy writeDbSignalSpy(m_db.data(), &Database::databaseSaved);
+
+    // 2 create new entries
+
+    // 2.a) Click the new entry button and set the title
+    auto* entryNewAction = m_mainWindow->findChild<QAction*>("actionEntryNew");
+    QVERIFY(entryNewAction->isEnabled());
+
+    auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
+    QVERIFY(toolBar);
+
+    QWidget* entryNewWidget = toolBar->widgetForAction(entryNewAction);
+
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditMode);
+
+    auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
+    QVERIFY(editEntryWidget);
+    auto* titleEdit = editEntryWidget->findChild<QLineEdit*>("titleEdit");
+    QVERIFY(titleEdit);
+
+    QTest::keyClicks(titleEdit, "Test autosaveDelay 1");
+
+    // 2.b) Save changes
+    editEntryWidget->setCurrentPage(0);
+    auto* editEntryWidgetButtonBox = editEntryWidget->findChild<QDialogButtonBox*>("buttonBox");
+    QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+
+    // 2.c) Make sure file was not modified yet
+    Tools::wait(150); // due to modify timer
+    QTRY_COMPARE(writeDbSignalSpy.count(), 0);
+
+    // 2.d) Create second entry to test delay timer reset
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditMode);
+    QTest::keyClicks(titleEdit, "Test autosaveDelay 2");
+
+    // 2.e) Save changes
+    editEntryWidget->setCurrentPage(0);
+    editEntryWidgetButtonBox = editEntryWidget->findChild<QDialogButtonBox*>("buttonBox");
+    QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+
+    // 3 Double check both true negative and true positive
+    // 3.a) Test unmodified prior to delay timeout
+    Tools::wait(150); // due to modify timer
+    QTRY_COMPARE(writeDbSignalSpy.count(), 0);
+
+    // 3.b) Test modification time after expected
+    m_dbWidget->triggerAutosaveTimer();
+    QTRY_COMPARE(writeDbSignalSpy.count(), 1);
+
+    // 4 Test no delay when disabled autosave or autosaveDelay
+    // 4.a) create new entry
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditMode);
+    QTest::keyClicks(titleEdit, "Test autosaveDelay 3");
+
+    // 4.b) Save changes
+    editEntryWidget->setCurrentPage(0);
+    editEntryWidgetButtonBox = editEntryWidget->findChild<QDialogButtonBox*>("buttonBox");
+    QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+
+    // 4.c) Start timer
+    Tools::wait(150); // due to modify timer
+
+    // 4.d) Disable autosave
+    config()->set(Config::AutoSaveAfterEveryChange, false);
+
+    // 4.e) Make sure changes are not saved
+    m_dbWidget->triggerAutosaveTimer();
+    QTRY_COMPARE(writeDbSignalSpy.count(), 1);
+
+    // 4.f) Repeat for autosaveDelay
+    config()->set(Config::AutoSaveAfterEveryChange, true);
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditMode);
+    QTest::keyClicks(titleEdit, "Test autosaveDelay 4");
+    editEntryWidget->setCurrentPage(0);
+    editEntryWidgetButtonBox = editEntryWidget->findChild<QDialogButtonBox*>("buttonBox");
+    QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+    Tools::wait(150); // due to modify timer
+    m_db->metadata()->setAutosaveDelayMin(0);
+
+    // 4.g) Make sure changes are not saved
+    m_dbWidget->triggerAutosaveTimer();
+    QTRY_COMPARE(writeDbSignalSpy.count(), 1);
+
+    // 5 Cleanup
+    config()->set(Config::AutoSaveAfterEveryChange, false);
 }
 
 void TestGui::testDatabaseLocking()

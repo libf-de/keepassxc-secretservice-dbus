@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "core/Metadata.h"
 #include "gui/GuiTools.h"
 #include "gui/Icons.h"
+#include "gui/MessageBox.h"
 #include "gui/passkeys/PasskeyExporter.h"
 #include "gui/passkeys/PasskeyImporter.h"
 #include "gui/styles/StateColorPalette.h"
@@ -151,7 +152,7 @@ void ReportsWidgetPasskeys::loadSettings(QSharedPointer<Database> db)
     m_rowToEntry.clear();
 
     auto row = QList<QStandardItem*>();
-    row << new QStandardItem(tr("Please wait, list of entries with Passkeys is being updated…"));
+    row << new QStandardItem(tr("Please wait, list of entries with passkeys is being updated…"));
     m_referencesModel->appendRow(row);
 }
 
@@ -187,7 +188,7 @@ void ReportsWidgetPasskeys::updateEntries()
 
     // Set the table header
     if (m_referencesModel->rowCount() == 0) {
-        m_referencesModel->setHorizontalHeaderLabels(QStringList() << tr("No entries with Passkeys."));
+        m_referencesModel->setHorizontalHeaderLabels(QStringList() << tr("No entries with passkeys."));
     } else {
         m_referencesModel->setHorizontalHeaderLabels(QStringList() << tr("Title") << tr("Path") << tr("Username")
                                                                    << tr("Relying Party") << tr("URLs"));
@@ -281,7 +282,7 @@ void ReportsWidgetPasskeys::selectionChanged()
 
 void ReportsWidgetPasskeys::importPasskey()
 {
-    PasskeyImporter passkeyImporter;
+    PasskeyImporter passkeyImporter(this);
     passkeyImporter.importPasskey(m_db);
 
     updateEntries();
@@ -289,6 +290,16 @@ void ReportsWidgetPasskeys::importPasskey()
 
 void ReportsWidgetPasskeys::exportPasskey()
 {
-    PasskeyExporter passkeyExporter;
+    auto answer = MessageBox::question(this,
+                                       tr("Export Confirmation"),
+                                       tr("The passkey file will be vulnerable to theft and unauthorized use, if left "
+                                          "unsecured. Are you sure you want to continue?"),
+                                       MessageBox::Yes | MessageBox::No,
+                                       MessageBox::No);
+    if (answer != MessageBox::Yes) {
+        return;
+    }
+
+    PasskeyExporter passkeyExporter(this);
     passkeyExporter.showExportDialog(getSelectedEntries());
 }

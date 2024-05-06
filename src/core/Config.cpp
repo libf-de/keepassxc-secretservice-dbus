@@ -92,11 +92,15 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
 
     // GUI
     {Config::GUI_Language, {QS("GUI/Language"), Roaming, QS("system")}},
+    {Config::GUI_HideMenubar, {QS("GUI/HideMenubar"), Roaming, false}},
     {Config::GUI_HideToolbar, {QS("GUI/HideToolbar"), Roaming, false}},
     {Config::GUI_MovableToolbar, {QS("GUI/MovableToolbar"), Roaming, false}},
     {Config::GUI_HidePreviewPanel, {QS("GUI/HidePreviewPanel"), Roaming, false}},
     {Config::GUI_AlwaysOnTop, {QS("GUI/GUI_AlwaysOnTop"), Local, false}},
     {Config::GUI_ToolButtonStyle, {QS("GUI/ToolButtonStyle"), Roaming, Qt::ToolButtonIconOnly}},
+#ifdef KEEPASSXC_DIST_FLATPAK
+    {Config::GUI_LaunchAtStartup, {QS("GUI/LaunchAtStartup"), Roaming, false}},
+#endif
     {Config::GUI_ShowTrayIcon, {QS("GUI/ShowTrayIcon"), Roaming, false}},
     {Config::GUI_TrayIconAppearance, {QS("GUI/TrayIconAppearance"), Roaming, {}}},
     {Config::GUI_MinimizeToTray, {QS("GUI/MinimizeToTray"), Roaming, false}},
@@ -104,7 +108,6 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::GUI_MinimizeOnClose, {QS("GUI/MinimizeOnClose"), Roaming, false}},
     {Config::GUI_HideUsernames, {QS("GUI/HideUsernames"), Roaming, false}},
     {Config::GUI_HidePasswords, {QS("GUI/HidePasswords"), Roaming, true}},
-    {Config::GUI_AdvancedSettings, {QS("GUI/AdvancedSettings"), Roaming, false}},
     {Config::GUI_ColorPasswords, {QS("GUI/ColorPasswords"), Roaming, false}},
     {Config::GUI_MonospaceNotes, {QS("GUI/MonospaceNotes"), Roaming, false}},
     {Config::GUI_ApplicationTheme, {QS("GUI/ApplicationTheme"), Roaming, QS("auto")}},
@@ -135,7 +138,6 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::Security_LockDatabaseMinimize, {QS("Security/LockDatabaseMinimize"), Roaming, false}},
     {Config::Security_LockDatabaseScreenLock, {QS("Security/LockDatabaseScreenLock"), Roaming, true}},
     {Config::Security_RelockAutoType, {QS("Security/RelockAutoType"), Roaming, false}},
-    {Config::Security_PasswordsRepeatVisible, {QS("Security/PasswordsRepeatVisible"), Roaming, true}},
     {Config::Security_PasswordsHidden, {QS("Security/PasswordsHidden"), Roaming, true}},
     {Config::Security_PasswordEmptyPlaceholder, {QS("Security/PasswordEmptyPlaceholder"), Roaming, false}},
     {Config::Security_HidePasswordPreviewPanel, {QS("Security/HidePasswordPreviewPanel"), Roaming, true}},
@@ -145,6 +147,7 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::Security_NoConfirmMoveEntryToRecycleBin,{QS("Security/NoConfirmMoveEntryToRecycleBin"), Roaming, true}},
     {Config::Security_EnableCopyOnDoubleClick,{QS("Security/EnableCopyOnDoubleClick"), Roaming, false}},
     {Config::Security_QuickUnlock, {QS("Security/QuickUnlock"), Local, true}},
+    {Config::Security_DatabasePasswordMinimumQuality, {QS("Security/DatabasePasswordMinimumQuality"), Local, 0}},
 
     // Browser
     {Config::Browser_Enabled, {QS("Browser/Enabled"), Roaming, false}},
@@ -328,7 +331,7 @@ static const QHash<QString, Config::ConfigKey> deprecationMap = {
     {QS("security/passwordscleartext"), Config::Security_PasswordsHidden},
     {QS("security/passwordemptynodots"), Config::Security_PasswordEmptyPlaceholder},
     {QS("security/HidePasswordPreviewPanel"), Config::Security_HidePasswordPreviewPanel},
-    {QS("security/passwordsrepeat"), Config::Security_PasswordsRepeatVisible},
+    {QS("security/passwordsrepeat"), Config::Deleted},
     {QS("security/hidenotes"), Config::Security_HideNotes},
     {QS("KeeShare/Settings.own"), Config::KeeShare_Own},
     {QS("KeeShare/Settings.foreign"), Config::KeeShare_Foreign},
@@ -371,7 +374,10 @@ static const QHash<QString, Config::ConfigKey> deprecationMap = {
     {QS("UseTouchID"), Config::Deleted},
     {QS("Security/ResetTouchId"), Config::Deleted},
     {QS("Security/ResetTouchIdTimeout"), Config::Deleted},
-    {QS("Security/ResetTouchIdScreenlock"), Config::Deleted}};
+
+    // 2.7.8
+    {QS("GUI/AdvancedSettings"), Config::Deleted},
+    {QS("Security/PasswordsRepeatVisible"), Config::Deleted}};
 
 /**
  * Migrate settings from previous versions.

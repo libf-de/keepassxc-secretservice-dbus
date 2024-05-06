@@ -485,7 +485,7 @@ bool AutoTypePlatformX11::RemapKeycode(KeySym keysym)
 AutoTypeAction::Result AutoTypePlatformX11::sendKey(KeySym keysym, unsigned int modifiers)
 {
     if (keysym == NoSymbol) {
-        return AutoTypeAction::Result::Failed(tr("Trying to send invalid keysym."));
+        return AutoTypeAction::Result::Failed(tr("Trying to send invalid keyboard symbol."));
     }
 
     int keycode;
@@ -606,8 +606,8 @@ AutoTypeAction::Result AutoTypeExecutorX11::execType(const AutoTypeKey* action)
 AutoTypeAction::Result AutoTypeExecutorX11::execClearField(const AutoTypeClearField* action)
 {
     Q_UNUSED(action);
-    execType(new AutoTypeKey(Qt::Key_Home, Qt::ControlModifier));
-    execType(new AutoTypeKey(Qt::Key_End, Qt::ControlModifier | Qt::ShiftModifier));
+    execType(new AutoTypeKey(Qt::Key_Home));
+    execType(new AutoTypeKey(Qt::Key_End, Qt::ShiftModifier));
     execType(new AutoTypeKey(Qt::Key_Backspace));
     return AutoTypeAction::Result::Ok();
 }

@@ -109,12 +109,15 @@ int PasskeyUtils::validateRpId(const QJsonValue& rpIdValue, const QString& effec
         return ERROR_PASSKEYS_DOMAIN_RPID_MISMATCH;
     }
 
-    if (rpIdValue.isUndefined()) {
-        return ERROR_PASSKEYS_DOMAIN_RPID_MISMATCH;
-    }
-
     if (effectiveDomain.isEmpty()) {
         return ERROR_PASSKEYS_ORIGIN_NOT_ALLOWED;
+    }
+
+    //  The RP ID defaults to being the caller's origin's effective domain unless the caller has explicitly set
+    //  options.rp.id
+    if (rpIdValue.isUndefined() || rpIdValue.isNull()) {
+        *result = effectiveDomain;
+        return PASSKEYS_SUCCESS;
     }
 
     const auto rpId = rpIdValue.toString();
@@ -302,9 +305,8 @@ bool PasskeyUtils::isUserVerificationRequired(const QJsonObject& authenticatorSe
                && BrowserPasskeys::SUPPORT_USER_VERIFICATION);
 }
 
-QByteArray PasskeyUtils::buildExtensionData(QJsonObject& extensionObject) const
+ExtensionResult PasskeyUtils::buildExtensionData(QJsonObject& extensionObject) const
 {
-    // Only supports "credProps" and "uvm" for now
     const QStringList allowedKeys = {"credProps", "uvm"};
 
     // Remove unsupported keys
@@ -314,9 +316,36 @@ QByteArray PasskeyUtils::buildExtensionData(QJsonObject& extensionObject) const
         }
     }
 
+    // Create response object
+    QJsonObject extensionJSON;
+
+    // https://w3c.github.io/webauthn/#sctn-authenticator-credential-properties-extension
+    if (extensionObject.contains("credProps") && extensionObject["credProps"].toBool()) {
+        extensionJSON["credProps"] = QJsonObject({{"rk", true}});
+    }
+
+    // https://w3c.github.io/webauthn/#sctn-uvm-extension
+    if (extensionObject.contains("uvm") && extensionObject["uvm"].toBool()) {
+        QJsonArray uvmResponse;
+        QJsonArray uvmArray = {
+            1, // userVerificationMethod (USER_VERIFY_PRESENCE_INTERNAL "presence_internal", 0x00000001)
+            1, // keyProtectionType (KEY_PROTECTION_SOFTWARE "software", 0x0001)
+            1, // matcherProtectionType (MATCHER_PROTECTION_SOFTWARE "software", 0x0001)
+        };
+        uvmResponse.append(uvmArray);
+        extensionJSON["uvm"] = uvmResponse;
+    }
+
+    if (extensionJSON.isEmpty()) {
+        return {};
+    }
+
     auto extensionData = m_browserCbor.cborEncodeExtensionData(extensionObject);
     if (!extensionData.isEmpty()) {
-        return extensionData;
+        ExtensionResult result;
+        result.extensionData = extensionData;
+        result.extensionObject = extensionJSON;
+        return result;
     }
 
     return {};
@@ -340,8 +369,10 @@ QStringList PasskeyUtils::getAllowedCredentialsFromAssertionOptions(const QJsonO
         const auto cred = credential.toObject();
         const auto id = cred["id"].toString();
         const auto transports = cred["transports"].toArray();
-        const auto hasSupportedTransport =
-            transports.isEmpty() || transports.contains(BrowserPasskeys::AUTHENTICATOR_TRANSPORT);
+        const auto hasSupportedTransport = transports.isEmpty()
+                                           || (transports.contains(BrowserPasskeys::AUTHENTICATOR_TRANSPORT_INTERNAL)
+                                               || transports.contains(BrowserPasskeys::AUTHENTICATOR_TRANSPORT_NFC)
+                                               || transports.contains(BrowserPasskeys::AUTHENTICATOR_TRANSPORT_USB));
 
         if (cred["type"].toString() == BrowserPasskeys::PUBLIC_KEY && hasSupportedTransport && !id.isEmpty()) {
             allowedCredentials << id;
@@ -349,4 +380,28 @@ QStringList PasskeyUtils::getAllowedCredentialsFromAssertionOptions(const QJsonO
     }
 
     return allowedCredentials;
+}
+
+// For compatibility with StrongBox (and other possible clients in the future)
+QString PasskeyUtils::getCredentialIdFromEntry(const Entry* entry) const
+{
+    if (!entry) {
+        return {};
+    }
+
+    return entry->attributes()->hasKey(BrowserPasskeys::KPEX_PASSKEY_GENERATED_USER_ID)
+               ? entry->attributes()->value(BrowserPasskeys::KPEX_PASSKEY_GENERATED_USER_ID)
+               : entry->attributes()->value(BrowserPasskeys::KPEX_PASSKEY_CREDENTIAL_ID);
+}
+
+// For compatibility with StrongBox (and other possible clients in the future)
+QString PasskeyUtils::getUsernameFromEntry(const Entry* entry) const
+{
+    if (!entry) {
+        return {};
+    }
+
+    return entry->attributes()->hasKey(BrowserPasskeys::KPXC_PASSKEY_USERNAME)
+               ? entry->attributes()->value(BrowserPasskeys::KPXC_PASSKEY_USERNAME)
+               : entry->attributes()->value(BrowserPasskeys::KPEX_PASSKEY_USERNAME);
 }

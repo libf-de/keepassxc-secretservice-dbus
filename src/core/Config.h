@@ -73,11 +73,15 @@ public:
         LastDir,
 
         GUI_Language,
+        GUI_HideMenubar,
         GUI_HideToolbar,
         GUI_MovableToolbar,
         GUI_HidePreviewPanel,
         GUI_AlwaysOnTop,
         GUI_ToolButtonStyle,
+#ifdef KEEPASSXC_DIST_FLATPAK
+        GUI_LaunchAtStartup,
+#endif
         GUI_ShowTrayIcon,
         GUI_TrayIconAppearance,
         GUI_MinimizeToTray,
@@ -85,7 +89,6 @@ public:
         GUI_MinimizeOnClose,
         GUI_HideUsernames,
         GUI_HidePasswords,
-        GUI_AdvancedSettings,
         GUI_ColorPasswords,
         GUI_MonospaceNotes,
         GUI_ApplicationTheme,
@@ -115,7 +118,6 @@ public:
         Security_LockDatabaseMinimize,
         Security_LockDatabaseScreenLock,
         Security_RelockAutoType,
-        Security_PasswordsRepeatVisible,
         Security_PasswordsHidden,
         Security_PasswordEmptyPlaceholder,
         Security_HidePasswordPreviewPanel,
@@ -125,6 +127,7 @@ public:
         Security_NoConfirmMoveEntryToRecycleBin,
         Security_EnableCopyOnDoubleClick,
         Security_QuickUnlock,
+        Security_DatabasePasswordMinimumQuality,
 
         Browser_Enabled,
         Browser_ShowNotification,

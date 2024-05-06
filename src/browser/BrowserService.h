@@ -93,7 +93,8 @@ public:
     QJsonObject showPasskeysAuthenticationPrompt(const QJsonObject& publicKeyOptions,
                                                  const QString& origin,
                                                  const StringPairList& keyList);
-    void addPasskeyToGroup(Group* group,
+    void addPasskeyToGroup(const QSharedPointer<Database>& db,
+                           Group* group,
                            const QString& url,
                            const QString& rpId,
                            const QString& rpName,
@@ -180,6 +181,8 @@ private:
 #ifdef WITH_XC_BROWSER_PASSKEYS
     QList<Entry*> getPasskeyEntries(const QString& rpId, const StringPairList& keyList);
     QList<Entry*>
+    getPasskeyEntriesWithUserHandle(const QString& rpId, const QString& userId, const StringPairList& keyList);
+    QList<Entry*>
     getPasskeyAllowedEntries(const QJsonObject& assertionOptions, const QString& rpId, const StringPairList& keyList);
     bool isPasskeyCredentialExcluded(const QJsonArray& excludeCredentials,
                                      const QString& rpId,
@@ -206,12 +209,11 @@ private:
 
     bool m_dialogActive;
     bool m_bringToFrontRequested;
-    bool m_passwordGeneratorRequested;
     WindowState m_prevWindowState;
     QUuid m_keepassBrowserUUID;
 
     QPointer<DatabaseWidget> m_currentDatabaseWidget;
-    QScopedPointer<PasswordGeneratorWidget> m_passwordGenerator;
+    QPointer<PasswordGeneratorWidget> m_passwordGenerator;
 
     Q_DISABLE_COPY(BrowserService);
 
