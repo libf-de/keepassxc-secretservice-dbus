@@ -462,20 +462,23 @@ void BrowserService::showPasswordGenerator(const KeyPairMessage& keyPairMessage)
     if (!m_passwordGenerator) {
         m_passwordGenerator = PasswordGeneratorWidget::popupGenerator();
 
-        connect(m_passwordGenerator.data(), &PasswordGeneratorWidget::closed, m_passwordGenerator.data(), [=] {
-            if (!m_passwordGenerator->isPasswordGenerated()) {
-                auto errorMessage = browserMessageBuilder()->getErrorReply("generate-password",
-                                                                           ERROR_KEEPASS_ACTION_CANCELLED_OR_DENIED);
-                m_browserHost->sendClientMessage(keyPairMessage.socket, errorMessage);
-            }
+        connect(m_passwordGenerator.data(),
+                &PasswordGeneratorWidget::closed,
+                m_passwordGenerator.data(),
+                [this, keyPairMessage] {
+                    if (!m_passwordGenerator->isPasswordGenerated()) {
+                        auto errorMessage = browserMessageBuilder()->getErrorReply(
+                            "generate-password", ERROR_KEEPASS_ACTION_CANCELLED_OR_DENIED);
+                        m_browserHost->sendClientMessage(keyPairMessage.socket, errorMessage);
+                    }
 
-            QTimer::singleShot(50, this, [&] { hideWindow(); });
-        });
+                    QTimer::singleShot(50, this, [&] { hideWindow(); });
+                });
 
         connect(m_passwordGenerator.data(),
                 &PasswordGeneratorWidget::appliedPassword,
                 m_passwordGenerator.data(),
-                [=](const QString& password) {
+                [this, keyPairMessage](const QString& password) {
                     const Parameters params{{"password", password}};
                     m_browserHost->sendClientMessage(keyPairMessage.socket,
                                                      browserMessageBuilder()->buildResponse("generate-password",
@@ -1151,13 +1154,7 @@ void BrowserService::denyEntry(Entry* entry, const QString& siteHost, const QStr
 QJsonObject BrowserService::prepareEntry(const Entry* entry)
 {
     QJsonObject res;
-#ifdef WITH_XC_BROWSER_PASSKEYS
-    // Use Passkey's username instead if found
-    res["login"] = entry->hasPasskey() ? passkeyUtils()->getUsernameFromEntry(entry)
-                                       : entry->resolveMultiplePlaceholders(entry->username());
-#else
     res["login"] = entry->resolveMultiplePlaceholders(entry->username());
-#endif
     res["password"] = entry->resolveMultiplePlaceholders(entry->password());
     res["name"] = entry->resolveMultiplePlaceholders(entry->title());
     res["uuid"] = entry->resolveMultiplePlaceholders(entry->uuidToHex());

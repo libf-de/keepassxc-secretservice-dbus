@@ -19,6 +19,7 @@
 #include "NativeMessageInstaller.h"
 #include "BrowserSettings.h"
 #include "config-keepassx.h"
+#include "core/Config.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -209,8 +210,8 @@ QString NativeMessageInstaller::getNativeMessagePath(SupportedBrowsers browser) 
     QString basePath;
 #if defined(Q_OS_WIN)
     // If portable settings file exists save the JSON scripts to the application folder
-    if (QFile::exists(QCoreApplication::applicationDirPath() + QStringLiteral("/keepassxc.ini"))) {
-        basePath = QCoreApplication::applicationDirPath();
+    if (Config::isPortable()) {
+        basePath = Config::portableConfigDir();
     } else {
         basePath = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
     }
@@ -224,6 +225,16 @@ QString NativeMessageInstaller::getNativeMessagePath(SupportedBrowsers browser) 
         basePath = QDir::homePath();
     } else {
         basePath = QDir::homePath() + "/.config";
+    }
+#elif defined(KEEPASSXC_DIST_SNAP)
+    // Same as Flatpak above, with the exception that Snap also redefines $HOME
+    // Therefore we must explicitly reference $SNAP_REAL_HOME
+    if (browser == SupportedBrowsers::TOR_BROWSER) {
+        basePath = qEnvironmentVariable("SNAP_REAL_HOME") + "/.local/share";
+    } else if (browser == SupportedBrowsers::FIREFOX) {
+        basePath = qEnvironmentVariable("SNAP_REAL_HOME");
+    } else {
+        basePath = qEnvironmentVariable("SNAP_REAL_HOME") + "/.config";
     }
 #elif defined(Q_OS_LINUX) || (defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
     if (browser == SupportedBrowsers::TOR_BROWSER) {
@@ -295,6 +306,8 @@ QString NativeMessageInstaller::getInstalledProxyPath() const
     path = QProcessEnvironment::systemEnvironment().value("APPIMAGE");
 #elif defined(KEEPASSXC_DIST_FLATPAK)
     path = constructFlatpakPath();
+#elif defined(KEEPASSXC_DIST_SNAP)
+    path = "/snap/bin/keepassxc.proxy";
 #else
     path = QCoreApplication::applicationDirPath() + QStringLiteral("/keepassxc-proxy");
 #ifdef Q_OS_WIN

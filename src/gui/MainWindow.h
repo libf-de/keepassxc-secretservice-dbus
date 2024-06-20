@@ -40,6 +40,14 @@ class InactivityTimer;
 class SearchWidget;
 class MainWindowEventFilter;
 
+class ActionEventFilter : public QObject
+{
+    Q_OBJECT
+
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -175,6 +183,7 @@ private:
     QPointer<FdoSecretsPlugin> fdoSS;
     #endif
     SignalMultiplexer m_actionMultiplexer;
+    ActionEventFilter m_actionEventFilter;
     QPointer<QAction> m_clearHistoryAction;
     QPointer<QAction> m_searchWidgetAction;
     QPointer<QMenu> m_entryContextMenu;
@@ -206,6 +215,7 @@ private:
     QTimer m_trayIconTriggerTimer;
     QSystemTrayIcon::ActivationReason m_trayIconTriggerReason;
 
+    friend class ActionEventFilter;
     friend class MainWindowEventFilter;
 };
 

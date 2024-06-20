@@ -121,8 +121,9 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     m_groupSplitter->setChildrenCollapsible(true);
     m_groupSplitter->addWidget(m_groupView);
     m_groupSplitter->addWidget(tagsWidget);
-    m_groupSplitter->setStretchFactor(0, 70);
-    m_groupSplitter->setStretchFactor(1, 30);
+    m_groupSplitter->setStretchFactor(0, 100);
+    m_groupSplitter->setStretchFactor(1, 0);
+    m_groupSplitter->setSizes({1, 1});
 
     auto rightHandSideWidget = new QWidget(m_mainSplitter);
     auto rightHandSideVBox = new QVBoxLayout();
@@ -138,8 +139,10 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     m_mainSplitter->setChildrenCollapsible(true);
     m_mainSplitter->addWidget(m_groupSplitter);
     m_mainSplitter->addWidget(rightHandSideWidget);
-    m_mainSplitter->setStretchFactor(0, 30);
-    m_mainSplitter->setStretchFactor(1, 70);
+    m_mainSplitter->setStretchFactor(0, 0);
+    m_mainSplitter->setStretchFactor(1, 100);
+    m_mainSplitter->setCollapsible(1, false);
+    m_mainSplitter->setSizes({1, 1});
 
     m_previewSplitter->setOrientation(Qt::Vertical);
     m_previewSplitter->setChildrenCollapsible(true);
@@ -194,6 +197,7 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     connect(m_previewSplitter, SIGNAL(splitterMoved(int,int)), SIGNAL(splitterSizesChanged()));
     connect(this, SIGNAL(currentModeChanged(DatabaseWidget::Mode)), m_previewView, SLOT(setDatabaseMode(DatabaseWidget::Mode)));
     connect(m_previewView, SIGNAL(entryUrlActivated(Entry*)), SLOT(openUrlForEntry(Entry*)));
+    connect(m_previewView, SIGNAL(copyTextRequested(const QString&)), SLOT(setClipboardTextAndMinimize(const QString&)));
     connect(m_entryView, SIGNAL(viewStateChanged()), SIGNAL(entryViewStateChanged()));
     connect(m_groupView, SIGNAL(groupSelectionChanged()), SLOT(onGroupChanged()));
     connect(m_groupView, &GroupView::groupFocused, this, [this] { m_previewView->setGroup(currentGroup()); });
@@ -361,20 +365,27 @@ QHash<Config::ConfigKey, QList<int>> DatabaseWidget::splitterSizes() const
 
 void DatabaseWidget::setSplitterSizes(const QHash<Config::ConfigKey, QList<int>>& sizes)
 {
+    // Set the splitter sizes, if the size is invalid set a default ratio based on this widget size
     for (auto itr = sizes.constBegin(); itr != sizes.constEnd(); ++itr) {
-        // Less than two sizes indicates an invalid value
-        if (itr.value().size() < 2) {
-            continue;
-        }
+        auto value = itr.value();
         switch (itr.key()) {
         case Config::GUI_SplitterState:
-            m_mainSplitter->setSizes(itr.value());
+            if (value.size() < 2) {
+                value = QList({static_cast<int>(width() * 0.25), static_cast<int>(width() * 0.75)});
+            }
+            m_mainSplitter->setSizes(value);
             break;
         case Config::GUI_PreviewSplitterState:
-            m_previewSplitter->setSizes(itr.value());
+            if (value.size() < 2) {
+                value = QList({static_cast<int>(height() * 0.8), static_cast<int>(height() * 0.2)});
+            }
+            m_previewSplitter->setSizes(value);
             break;
         case Config::GUI_GroupSplitterState:
-            m_groupSplitter->setSizes(itr.value());
+            if (value.size() < 2) {
+                value = QList({static_cast<int>(height() * 0.6), static_cast<int>(height() * 0.4)});
+            }
+            m_groupSplitter->setSizes(value);
             break;
         default:
             break;
@@ -658,29 +669,6 @@ void DatabaseWidget::copyUsername()
 
 void DatabaseWidget::copyPassword()
 {
-    // Some platforms do not properly trap Ctrl+C copy shortcut
-    // if a text edit or label has focus pass the copy operation to it
-
-    bool clearClipboard = config()->get(Config::Security_ClearClipboard).toBool();
-
-    auto plainTextEdit = qobject_cast<QPlainTextEdit*>(focusWidget());
-    if (plainTextEdit && plainTextEdit->textCursor().hasSelection()) {
-        clipboard()->setText(plainTextEdit->textCursor().selectedText(), clearClipboard);
-        return;
-    }
-
-    auto label = qobject_cast<QLabel*>(focusWidget());
-    if (label && label->hasSelectedText()) {
-        clipboard()->setText(label->selectedText(), clearClipboard);
-        return;
-    }
-
-    auto textEdit = qobject_cast<QTextEdit*>(focusWidget());
-    if (textEdit && textEdit->textCursor().hasSelection()) {
-        clipboard()->setText(textEdit->textCursor().selection().toPlainText(), clearClipboard);
-        return;
-    }
-
     auto currentEntry = currentSelectedEntry();
     if (currentEntry) {
         setClipboardTextAndMinimize(currentEntry->resolveMultiplePlaceholders(currentEntry->password()));
@@ -719,6 +707,34 @@ void DatabaseWidget::copyAttribute(QAction* action)
         setClipboardTextAndMinimize(
             currentEntry->resolveMultiplePlaceholders(currentEntry->attributes()->value(action->data().toString())));
     }
+}
+
+bool DatabaseWidget::copyFocusedTextSelection()
+{
+    // If a focused child widget has text selected, copy that text to the clipboard
+    // and return true. Otherwise, return false.
+
+    const bool clearClipboard = config()->get(Config::Security_ClearClipboard).toBool();
+
+    const auto plainTextEdit = qobject_cast<QPlainTextEdit*>(focusWidget());
+    if (plainTextEdit && plainTextEdit->textCursor().hasSelection()) {
+        clipboard()->setText(plainTextEdit->textCursor().selectedText(), clearClipboard);
+        return true;
+    }
+
+    const auto label = qobject_cast<QLabel*>(focusWidget());
+    if (label && label->hasSelectedText()) {
+        clipboard()->setText(label->selectedText(), clearClipboard);
+        return true;
+    }
+
+    const auto textEdit = qobject_cast<QTextEdit*>(focusWidget());
+    if (textEdit && textEdit->textCursor().hasSelection()) {
+        clipboard()->setText(textEdit->textCursor().selection().toPlainText(), clearClipboard);
+        return true;
+    }
+
+    return false;
 }
 
 void DatabaseWidget::filterByTag()
@@ -1428,6 +1444,22 @@ void DatabaseWidget::showImportPasskeyDialog(bool isEntry)
         passkeyImporter.importPasskey(m_db);
     }
 }
+
+void DatabaseWidget::removePasskeyFromEntry()
+{
+    auto currentEntry = currentSelectedEntry();
+    if (!currentEntry) {
+        return;
+    }
+
+    auto result = MessageBox::question(this,
+                                       tr("Remove passkey from entry"),
+                                       tr("Do you want to remove the passkey from this entry?"),
+                                       MessageBox::Remove | MessageBox::Cancel);
+    if (result == MessageBox::Remove) {
+        currentEntry->removePasskey();
+    }
+}
 #endif
 
 void DatabaseWidget::performUnlockDatabase(const QString& password, const QString& keyfile)
@@ -2017,6 +2049,14 @@ bool DatabaseWidget::currentEntryHasSshKey()
     }
 
     return KeeAgentSettings::inEntryAttachments(currentEntry->attachments());
+}
+#endif
+
+#ifdef WITH_XC_BROWSER_PASSKEYS
+bool DatabaseWidget::currentEntryHasPasskey()
+{
+    auto currentEntry = m_entryView->currentEntry();
+    return currentEntry && currentEntry->hasPasskey();
 }
 #endif
 

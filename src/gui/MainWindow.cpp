@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -84,6 +84,28 @@ using FdoSecrets::SettingsDatabaseModel;
 #include "mainwindowadaptor.h"
 #endif
 
+// This filter gets installed on all the QAction objects within the MainWindow.
+bool ActionEventFilter::eventFilter(QObject* watched, QEvent* event)
+{
+    auto databaseWidget = getMainWindow()->m_ui->tabWidget->currentDatabaseWidget();
+    if (databaseWidget && event->type() == QEvent::Shortcut) {
+        // We check if we got a Shortcut event that uses the same key sequence as the
+        // OS default copy-to-clipboard shortcut.
+        static const auto stdCopyShortcuts = QKeySequence::keyBindings(QKeySequence::Copy);
+        if (stdCopyShortcuts.contains(static_cast<QShortcutEvent*>(event)->key())) {
+            // If so, we ask the database widget to check if any of its sub-widgets has text
+            // selected, and to copy it to the clipboard if that is the case. We do this
+            // because that is what the user likely expects to happen, yet Qt does not
+            // behave like that on all platforms.
+            if (databaseWidget->copyFocusedTextSelection()) {
+                // In that case, we return true to stop further processing of this event.
+                return true;
+            }
+        }
+    }
+    return QObject::eventFilter(watched, event);
+}
+
 const QString MainWindow::BaseWindowTitle = "KeePassXC";
 
 MainWindow* g_MainWindow = nullptr;
@@ -144,6 +166,7 @@ MainWindow::MainWindow()
     m_entryContextMenu->addSeparator();
 #ifdef WITH_XC_BROWSER_PASSKEYS
     m_entryContextMenu->addAction(m_ui->actionEntryImportPasskey);
+    m_entryContextMenu->addAction(m_ui->actionEntryRemovePasskey);
     m_entryContextMenu->addSeparator();
 #endif
     m_entryContextMenu->addAction(m_ui->actionEntryEdit);
@@ -453,7 +476,11 @@ MainWindow::MainWindow()
     m_ui->actionPasskeys->setIcon(icons()->icon("passkey"));
     m_ui->actionImportPasskey->setIcon(icons()->icon("document-import"));
     m_ui->actionEntryImportPasskey->setIcon(icons()->icon("document-import"));
+    m_ui->actionEntryRemovePasskey->setIcon(icons()->icon("document-close"));
 #endif
+
+    // Handle copy to clipboard shortcut interference
+    m_ui->actionEntryCopyPassword->installEventFilter(&m_actionEventFilter);
 
     m_actionMultiplexer.connect(
         SIGNAL(currentModeChanged(DatabaseWidget::Mode)), this, SLOT(setMenuActionState(DatabaseWidget::Mode)));
@@ -504,6 +531,7 @@ MainWindow::MainWindow()
     connect(m_ui->actionPasskeys, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showPasskeys()));
     connect(m_ui->actionImportPasskey, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importPasskey()));
     connect(m_ui->actionEntryImportPasskey, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importPasskeyToEntry()));
+    connect(m_ui->actionEntryRemovePasskey, SIGNAL(triggered()), m_ui->tabWidget, SLOT(removePasskeyFromEntry()));
 #endif
     connect(m_ui->actionImport, SIGNAL(triggered()), m_ui->tabWidget, SLOT(importFile()));
     connect(m_ui->actionExportCsv, SIGNAL(triggered()), m_ui->tabWidget, SLOT(exportToCsv()));
@@ -1013,9 +1041,11 @@ void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
             m_ui->actionExportXML->setEnabled(true);
             m_ui->actionDatabaseMerge->setEnabled(m_ui->tabWidget->currentIndex() != -1);
 #ifdef WITH_XC_BROWSER_PASSKEYS
+            bool singleEntryHasPasskey = singleEntrySelected && dbWidget->currentEntryHasPasskey();
             m_ui->actionPasskeys->setEnabled(true);
             m_ui->actionImportPasskey->setEnabled(true);
             m_ui->actionEntryImportPasskey->setEnabled(singleEntrySelected);
+            m_ui->actionEntryRemovePasskey->setEnabled(singleEntryHasPasskey);
 #endif
 #ifdef WITH_XC_SSHAGENT
             bool singleEntryHasSshKey =
@@ -1087,10 +1117,12 @@ void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
             m_ui->actionPasskeys->setEnabled(false);
             m_ui->actionImportPasskey->setEnabled(false);
             m_ui->actionEntryImportPasskey->setEnabled(false);
+            m_ui->actionEntryRemovePasskey->setEnabled(false);
 #else
             m_ui->actionPasskeys->setVisible(false);
             m_ui->actionImportPasskey->setVisible(false);
             m_ui->actionEntryImportPasskey->setVisible(false);
+            m_ui->actionEntryRemovePasskey->setVisible(false);
 #endif
 
             m_searchWidgetAction->setEnabled(false);

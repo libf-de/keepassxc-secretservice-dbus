@@ -19,6 +19,7 @@
 #include "BrowserMessageBuilder.h"
 #include "BrowserService.h"
 #include "PasskeyUtils.h"
+#include "config-keepassx.h"
 #include "crypto/Random.h"
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -102,11 +103,18 @@ PublicKeyCredential BrowserPasskeys::buildRegisterPublicKeyCredential(const QJso
         return {};
     }
 
+    // Authenticator data
+    const auto authenticatorData = buildAuthenticatorData(credentialCreationOptions["rp"]["id"].toString(), extensions);
+
     // Response
     QJsonObject responseObject;
     responseObject["attestationObject"] = browserMessageBuilder()->getBase64FromArray(attestationObject);
     responseObject["clientDataJSON"] = browserMessageBuilder()->getBase64FromJson(clientDataJson);
     responseObject["clientExtensionResults"] = credentialCreationOptions["clientExtensionResults"];
+
+    // Additions for extension side functions
+    responseObject["authenticatorData"] = browserMessageBuilder()->getBase64FromArray(authenticatorData);
+    responseObject["publicKeyAlgorithm"] = alg;
 
     // PublicKeyCredential
     QJsonObject publicKeyCredential;
@@ -131,7 +139,8 @@ QJsonObject BrowserPasskeys::buildGetPublicKeyCredential(const QJsonObject& asse
         return {};
     }
 
-    const auto authenticatorData = buildAuthenticatorData(assertionOptions);
+    const auto authenticatorData =
+        buildAuthenticatorData(assertionOptions["rpId"].toString(), assertionOptions["extensions"].toString());
     const auto clientDataJson = assertionOptions["clientDataJson"].toObject();
     const auto clientDataArray = QJsonDocument(clientDataJson).toJson(QJsonDocument::Compact);
 
@@ -203,14 +212,13 @@ QByteArray BrowserPasskeys::buildAttestationObject(const QJsonObject& credential
 }
 
 // Build a short version of the attestation object for webauthn.get
-QByteArray BrowserPasskeys::buildAuthenticatorData(const QJsonObject& publicKey)
+QByteArray BrowserPasskeys::buildAuthenticatorData(const QString& rpId, const QString& extensions)
 {
     QByteArray result;
 
-    const auto rpIdHash = browserMessageBuilder()->getSha256Hash(publicKey["rpId"].toString());
+    const auto rpIdHash = browserMessageBuilder()->getSha256Hash(rpId);
     result.append(rpIdHash);
 
-    const auto extensions = publicKey["extensions"].toString();
     const auto flags = setFlagsFromJson(QJsonObject(
         {{"ED", !extensions.isEmpty()}, {"AT", false}, {"BS", false}, {"BE", false}, {"UV", true}, {"UP", true}}));
     result.append(flags);
@@ -276,7 +284,11 @@ BrowserPasskeys::buildCredentialPrivateKey(int alg, const QString& predefinedFir
             try {
                 Botan::Ed25519_PrivateKey key(*randomGen()->getRng());
                 auto publicKey = key.get_public_key();
+#ifdef WITH_XC_BOTAN3
+                auto privateKey = key.raw_private_key_bits();
+#else
                 auto privateKey = key.get_private_key();
+#endif
                 firstPart = browserMessageBuilder()->getQByteArray(publicKey.data(), publicKey.size());
                 secondPart = browserMessageBuilder()->getQByteArray(privateKey.data(), privateKey.size());
 

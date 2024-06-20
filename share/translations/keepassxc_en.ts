@@ -1225,18 +1225,6 @@ Would you like to migrate your existing settings now?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Due to Snap sandboxing, you must run a script to enable browser integration.&lt;br /&gt;You can obtain this script from %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>KeePassXC-Browser is needed for the browser integration to work. &lt;br /&gt;Download it for %1 and %2 and %3. %4</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Please see special instructions for browser extension use below</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Executable Files</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1274,6 +1262,10 @@ Would you like to migrate your existing settings now?</source>
     </message>
     <message>
         <source>Allow using localhost with passkeys</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>KeePassXC-Browser is needed for the browser integration to work. &lt;br /&gt;Download it for %1 and %2 and %3.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1419,6 +1411,15 @@ Would you like to migrate your existing settings now?</source>
     </message>
     <message>
         <source>Imported from CSV file: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No Title Selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No title column was selected, entries will be hard to tell apart.
+Are you sure you want to import?</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1894,11 +1895,11 @@ Are you sure you want to continue without a password?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>You must enter a stronger password to protect your database.</source>
+        <source>This is a weak password! For better protection of your secrets, you should choose a stronger password.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>This is a weak password! For better protection of your secrets, you should choose a stronger password.</source>
+        <source>The provided password does not meet the minimum quality requirement.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2534,6 +2535,14 @@ Disable safe saves and try again?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Remove passkey from entry</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Do you want to remove the passkey from this entry?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Searches and Tags</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2605,10 +2614,6 @@ Disable safe saves and try again?</source>
     </message>
     <message>
         <source>n/a</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>(encrypted)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2719,6 +2724,10 @@ Would you like to correct it?</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Failed to decrypt SSH key, ensure password is correct.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -3584,6 +3593,10 @@ This may cause the affected plugins to malfunction.</source>
     <name>Entry</name>
     <message>
         <source>%1 - Clone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Passkey</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5738,6 +5751,10 @@ We recommend you use the AppImage available on our downloads page.</source>
         <source>Toggle Show Menubar</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Remove Passkey From Entry</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ManageDatabase</name>
@@ -6089,6 +6106,10 @@ We recommend you use the AppImage available on our downloads page.</source>
     </message>
     <message>
         <source>Unexpected EOF when writing private key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(encrypted)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -8495,11 +8516,19 @@ This option is deprecated, use --set-key-file instead.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Unsupported KDF type, cannot decrypt json file</source>
+        <source>Unknown passkeys error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Unknown passkeys error</source>
+        <source>Invalid KDF iterations, cannot decrypt json file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsupported format, ensure your Bitwarden export is password-protected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only PBKDF and Argon2 are supported, cannot decrypt json file</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

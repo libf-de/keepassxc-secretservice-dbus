@@ -922,7 +922,7 @@ void TestGui::testTotp()
     auto* totpDialog = m_dbWidget->findChild<TotpDialog*>("TotpDialog");
     auto* totpLabel = totpDialog->findChild<QLabel*>("totpLabel");
 
-    QCOMPARE(totpLabel->text().replace(" ", ""), entry->totp());
+    QTRY_COMPARE(totpLabel->text().replace(" ", ""), entry->totp());
     QTest::keyClick(totpDialog, Qt::Key_Escape);
 
     // Test the QR code
@@ -1021,15 +1021,15 @@ void TestGui::testSearch()
     searchedEntry->setPassword("password");
     QClipboard* clipboard = QApplication::clipboard();
 
-    // Attempt password copy with selected test (should fail)
+    // Copy to clipboard: should copy search text (not password)
     QTest::keyClick(searchTextEdit, Qt::Key_C, Qt::ControlModifier);
-    QVERIFY(clipboard->text() != searchedEntry->password());
+    QCOMPARE(clipboard->text(), QString("someTHING"));
     // Deselect text and confirm password copies
     QTest::mouseClick(searchTextEdit, Qt::LeftButton);
     QTRY_VERIFY(searchTextEdit->selectedText().isEmpty());
     QTRY_VERIFY(searchTextEdit->hasFocus());
     QTest::keyClick(searchTextEdit, Qt::Key_C, Qt::ControlModifier);
-    QCOMPARE(searchedEntry->password(), clipboard->text());
+    QCOMPARE(clipboard->text(), searchedEntry->password());
     // Ensure Down focuses on entry view when search text is selected
     QTest::keyClick(searchTextEdit, Qt::Key_A, Qt::ControlModifier);
     QTest::keyClick(searchTextEdit, Qt::Key_Down);
@@ -1037,14 +1037,27 @@ void TestGui::testSearch()
     QCOMPARE(entryView->currentEntry(), searchedEntry);
     // Test that password copies with entry focused
     QTest::keyClick(entryView, Qt::Key_C, Qt::ControlModifier);
-    QCOMPARE(searchedEntry->password(), clipboard->text());
+    QCOMPARE(clipboard->text(), searchedEntry->password());
     // Refocus back to search edit
     QTest::mouseClick(searchTextEdit, Qt::LeftButton);
     QTRY_VERIFY(searchTextEdit->hasFocus());
-    // Test that password does not copy
+    // Select search text and test that password does not copy
     searchTextEdit->selectAll();
     QTest::keyClick(searchTextEdit, Qt::Key_C, Qt::ControlModifier);
     QTRY_COMPARE(clipboard->text(), QString("someTHING"));
+    // Ensure password copies when clicking on copy password button despite selected text
+    auto copyPasswordAction = m_mainWindow->findChild<QAction*>("actionEntryCopyPassword");
+    QVERIFY(copyPasswordAction);
+    auto copyPasswordWidget = toolBar->widgetForAction(copyPasswordAction);
+    QVERIFY(copyPasswordWidget);
+    QTest::mouseClick(copyPasswordWidget, Qt::LeftButton);
+    QCOMPARE(clipboard->text(), searchedEntry->password());
+    // Deselect text and deselect entry, Ctrl+C should now do nothing
+    clipboard->clear();
+    QTest::mouseClick(searchTextEdit, Qt::LeftButton);
+    entryView->clearSelection();
+    QTest::keyClick(searchTextEdit, Qt::Key_C, Qt::ControlModifier);
+    QCOMPARE(clipboard->text(), QString());
 
     // Test case sensitive search
     searchWidget->setCaseSensitive(true);
@@ -1482,24 +1495,82 @@ void TestGui::testDatabaseSettings()
     int autosaveDelayTestValue = 2;
 
     dbSettingsCategoryList->setCurrentCategory(1); // go into security category
-    dbSettingsStackedWidget->findChild<QTabWidget*>()->setCurrentIndex(1); // go into encryption tab
+    auto securityTabWidget = dbSettingsStackedWidget->findChild<QTabWidget*>();
+    QCOMPARE(securityTabWidget->currentIndex(), 0);
 
-    auto encryptionSettings = dbSettingsDialog->findChild<QTabWidget*>("encryptionSettingsTabWidget");
+    // Interact with the password edit option
+    auto passwordEditWidget = securityTabWidget->findChild<PasswordEditWidget*>();
+    QVERIFY(passwordEditWidget);
+    auto editPasswordButton = passwordEditWidget->findChild<QPushButton*>("changeButton");
+    QVERIFY(editPasswordButton);
+    QVERIFY(editPasswordButton->isVisible());
+    QTest::mouseClick(editPasswordButton, Qt::LeftButton);
+    QApplication::processEvents();
+    auto passwordWidgets = dbSettingsDialog->findChildren<PasswordWidget*>();
+    QVERIFY(passwordWidgets.count() == 2);
+    QVERIFY(passwordWidgets[0]->isVisible());
+    passwordWidgets[0]->setText("b");
+    passwordWidgets[1]->setText("b");
+
+    // Toggle between tabs to ensure the password remains
+    securityTabWidget->setCurrentIndex(1);
+    QApplication::processEvents();
+    securityTabWidget->setCurrentIndex(0);
+    QApplication::processEvents();
+    QCOMPARE(passwordWidgets[0]->text(), QString("b"));
+
+    // Cancel password change and confirm password is cleared
+    auto cancelPasswordButton = passwordEditWidget->findChild<QPushButton*>("cancelButton");
+    QVERIFY(cancelPasswordButton);
+    QTest::mouseClick(cancelPasswordButton, Qt::LeftButton);
+    QApplication::processEvents();
+    QVERIFY(!passwordWidgets[0]->isVisible());
+    QCOMPARE(passwordWidgets[0]->text(), QString(""));
+    QVERIFY(editPasswordButton->isVisible());
+
+    // Switch to encryption tab and interact with various settings
+    securityTabWidget->setCurrentIndex(1);
+    QApplication::processEvents();
+
+    // Verify database is KDBX3
+    auto compatibilitySelection = securityTabWidget->findChild<QComboBox*>("compatibilitySelection");
+    QVERIFY(compatibilitySelection);
+    QVERIFY(compatibilitySelection->isEnabled());
+    QCOMPARE(compatibilitySelection->currentText(), QString("KDBX 3"));
+
+    // Verify advanced settings
+    auto encryptionSettings = securityTabWidget->findChild<QTabWidget*>("encryptionSettingsTabWidget");
     auto advancedTab = encryptionSettings->findChild<QWidget*>("advancedTab");
     encryptionSettings->setCurrentWidget(advancedTab);
-
     QApplication::processEvents();
+
+    // Verify KDF is AES KDBX3
+    auto kdfSelection = advancedTab->findChild<QComboBox*>("kdfComboBox");
+    QVERIFY(kdfSelection->isVisible());
+    QCOMPARE(kdfSelection->currentText(), QString("AES-KDF (KDBX 3)"));
 
     auto transformRoundsSpinBox = advancedTab->findChild<QSpinBox*>("transformRoundsSpinBox");
     QVERIFY(transformRoundsSpinBox);
-    QVERIFY(transformRoundsSpinBox->isVisible());
 
+    // Adjust compatibility to KDBX4 and wait for KDF to update
+    compatibilitySelection->setCurrentIndex(0);
+    QTRY_VERIFY(transformRoundsSpinBox->isEnabled());
+    QCOMPARE(compatibilitySelection->currentText().left(6), QString("KDBX 4"));
+    QCOMPARE(kdfSelection->currentText().left(7), QString("Argon2d"));
+
+    // Switch to AES KDBX4, change rounds, then accept
+    kdfSelection->setCurrentIndex(2);
+    QCOMPARE(kdfSelection->currentText(), QString("AES-KDF (KDBX 4)"));
     transformRoundsSpinBox->setValue(123456);
     QTest::keyClick(transformRoundsSpinBox, Qt::Key_Enter);
     QTRY_COMPARE(m_db->kdf()->rounds(), 123456);
+    QVERIFY(m_db->formatVersion() >= KeePass2::FILE_VERSION_4);
+    QCOMPARE(m_db->kdf()->uuid(), KeePass2::KDF_AES_KDBX4);
+
+    // Go back into database settings
+    triggerAction("actionDatabaseSettings");
 
     // test disable and default values for maximum history items and size
-    triggerAction("actionDatabaseSettings");
     auto* historyMaxItemsCheckBox = dbSettingsDialog->findChild<QCheckBox*>("historyMaxItemsCheckBox");
     auto* historyMaxItemsSpinBox = dbSettingsDialog->findChild<QSpinBox*>("historyMaxItemsSpinBox");
     auto* historyMaxSizeCheckBox = dbSettingsDialog->findChild<QCheckBox*>("historyMaxSizeCheckBox");

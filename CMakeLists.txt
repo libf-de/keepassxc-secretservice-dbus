@@ -121,7 +121,7 @@ endif()
 
 set(KEEPASSXC_VERSION_MAJOR "2")
 set(KEEPASSXC_VERSION_MINOR "7")
-set(KEEPASSXC_VERSION_PATCH "8")
+set(KEEPASSXC_VERSION_PATCH "9")
 set(KEEPASSXC_VERSION "${KEEPASSXC_VERSION_MAJOR}.${KEEPASSXC_VERSION_MINOR}.${KEEPASSXC_VERSION_PATCH}")
 set(OVERRIDE_VERSION "" CACHE STRING "Override the KeePassXC Version for Snapshot builds")
 
@@ -395,7 +395,7 @@ if (MSVC)
     if(MSVC_TOOLSET_VERSION LESS 141)
         message(FATAL_ERROR "Only Microsoft Visual Studio 17 and newer are supported!")
     endif()
-    add_compile_options(/permissive- /utf-8)
+    add_compile_options(/permissive- /utf-8 /MP)
     if(IS_DEBUG_BUILD)
         add_compile_options(/Zf)
         if(MSVC_TOOLSET_VERSION GREATER 141)
@@ -467,7 +467,7 @@ if(WITH_COVERAGE)
     append_coverage_compiler_flags()
 
     set(COVERAGE_EXCLUDES
-            "'^(.+/)?(thirdparty|zxcvbn)/.*'"
+            "'^(.+/)?thirdparty/.*'"
             "'^(.+/)?main\\.cpp$$'"
             "'^(.+/)?cli/keepassxc-cli\\.cpp$$'"
             "'^(.+/)?proxy/keepassxc-proxy\\.cpp$$'")
@@ -612,6 +612,12 @@ if(UNIX)
 endif()
 
 include_directories(SYSTEM ${ZLIB_INCLUDE_DIR})
+
+find_library(ZXCVBN_LIBRARIES zxcvbn)
+if(NOT ZXCVBN_LIBRARIES)
+    add_subdirectory(src/thirdparty/zxcvbn)
+    set(ZXCVBN_LIBRARIES zxcvbn)
+endif(NOT ZXCVBN_LIBRARIES)
 
 add_subdirectory(src)
 add_subdirectory(share)
