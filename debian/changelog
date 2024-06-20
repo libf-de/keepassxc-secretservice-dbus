@@ -1,3 +1,9 @@
+keepassxc (2.7.9-1~jammy1) jammy; urgency=medium
+
+  * Upstream update
+
+ -- Fabian Schillig <xorgmc@gmail.com>  Thu, 20 Jun 2024 10:20:32 +0000
+
 keepassxc (2.7.8-1~jammy1) jammy; urgency=medium
 
   * Upstream update
