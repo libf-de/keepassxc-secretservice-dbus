@@ -98,10 +98,12 @@ public:
     bool isExpired() const;
     bool isRecycled() const;
     bool isEmpty() const;
+    bool isShared() const;
     CustomData* customData();
     const CustomData* customData() const;
     Group::TriState resolveCustomDataTriState(const QString& key, bool checkParent = true) const;
     void setCustomDataTriState(const QString& key, const Group::TriState& value);
+    QString resolveCustomDataString(const QString& key, bool checkParent = true) const;
     const Group* previousParentGroup() const;
     QUuid previousParentGroupUuid() const;
 
@@ -153,7 +155,6 @@ public:
     const QList<Group*>& children() const;
     QList<Entry*> entries();
     const QList<Entry*>& entries() const;
-    Entry* findEntryRecursive(const QString& text, EntryReferenceType referenceType, Group* group = nullptr);
     QList<Entry*> referencesRecursive(const Entry* entry) const;
     QList<Entry*> entriesRecursive(bool includeHistoryItems = false) const;
     QList<const Group*> groupsRecursive(bool includeSelf) const;
@@ -227,9 +228,7 @@ private:
 
     bool m_updateTimeinfo;
 
-    friend void Database::setRootGroup(Group* group);
-    friend Entry::~Entry();
-    friend void Entry::setGroup(Group* group, bool trackPrevious);
+    friend Group* Database::setRootGroup(Group* group);
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Group::CloneFlags)

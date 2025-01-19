@@ -18,6 +18,7 @@
 #include "OpenSSHKeyGen.h"
 #include "BinaryStream.h"
 #include "OpenSSHKey.h"
+#include "config-keepassx.h"
 #include "crypto/Random.h"
 
 #include <botan/ecdsa.h>
@@ -65,7 +66,7 @@ namespace OpenSSHKeyGen
             BinaryStream privateStream(&privateData);
             bigIntToStream(rsaKey.get_n(), privateStream, 1);
             bigIntToStream(rsaKey.get_e(), privateStream);
-            bigIntToStream(rsaKey.get_d(), privateStream);
+            bigIntToStream(rsaKey.get_d(), privateStream, 1);
             bigIntToStream(rsaKey.get_c(), privateStream, 1);
             bigIntToStream(rsaKey.get_p(), privateStream, 1);
             bigIntToStream(rsaKey.get_q(), privateStream, 1);
@@ -126,7 +127,11 @@ namespace OpenSSHKeyGen
             QByteArray privateData;
             BinaryStream privateStream(&privateData);
             vectorToStream(ed25519Key.get_public_key(), privateStream);
+#ifdef WITH_XC_BOTAN3
+            vectorToStream(ed25519Key.raw_private_key_bits(), privateStream);
+#else
             vectorToStream(ed25519Key.get_private_key(), privateStream);
+#endif
 
             key.setType("ssh-ed25519");
             key.setCheck(randomGen()->randomUInt(std::numeric_limits<quint32>::max() - 1) + 1);

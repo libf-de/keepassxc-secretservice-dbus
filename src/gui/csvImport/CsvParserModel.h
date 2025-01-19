@@ -21,19 +21,21 @@
 
 #include <QAbstractTableModel>
 
-#include "core/Group.h"
-#include "format/CsvParser.h"
+class CsvParser;
 
-class CsvParserModel : public QAbstractTableModel, public CsvParser
+class CsvParserModel : public QAbstractTableModel
 {
     Q_OBJECT
 
 public:
     explicit CsvParserModel(QObject* parent = nullptr);
     ~CsvParserModel() override;
+
     void setFilename(const QString& filename);
     QString getFileInfo();
     bool parse();
+
+    CsvParser* parser();
 
     void setHeaderLabels(const QStringList& labels);
     void mapColumns(int csvColumn, int dbColumn);
@@ -43,16 +45,16 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 
-public slots:
     void setSkippedRows(int skipped);
+    int skippedRows() const;
 
 private:
+    CsvParser* m_parser;
     int m_skipped;
     QString m_filename;
     QStringList m_columnHeader;
     // first column of model must be empty (aka combobox row "Not present in CSV file")
     void addEmptyColumn();
-    // mapping CSV columns to keepassx columns
     QMap<int, int> m_columnMap;
 };
 

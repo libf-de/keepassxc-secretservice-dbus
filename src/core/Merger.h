@@ -31,6 +31,7 @@ public:
     Merger(const Group* sourceGroup, Group* targetGroup);
     void setForcedMergeMode(Group::MergeMode mode);
     void resetForcedMergeMode();
+    void setSkipDatabaseCustomData(bool state);
     QStringList merge();
 
 private:
@@ -49,12 +50,12 @@ private:
     ChangeList mergeGroup(const MergeContext& context);
     ChangeList mergeDeletions(const MergeContext& context);
     ChangeList mergeMetadata(const MergeContext& context);
-    bool mergeHistory(const Entry* sourceEntry, Entry* targetEntry, Group::MergeMode mergeMethod);
+    bool mergeHistory(const Entry* sourceEntry, Entry* targetEntry, Group::MergeMode mergeMethod, const int maxItems);
     void moveEntry(Entry* entry, Group* targetGroup);
     void moveGroup(Group* group, Group* targetGroup);
-    // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
+    // remove an entry without a trace in the deletedObjects - needed for elimination of cloned entries
     void eraseEntry(Entry* entry);
-    // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
+    // remove an entry without a trace in the deletedObjects - needed for elimination of cloned entries
     void eraseGroup(Group* group);
     ChangeList resolveEntryConflict(const MergeContext& context, const Entry* existingEntry, Entry* otherEntry);
     ChangeList resolveGroupConflict(const MergeContext& context, const Group* existingGroup, Group* otherGroup);
@@ -66,6 +67,7 @@ private:
 private:
     MergeContext m_context;
     Group::MergeMode m_mode;
+    bool m_skipCustomData = false;
 };
 
 #endif // KEEPASSXC_MERGER_H

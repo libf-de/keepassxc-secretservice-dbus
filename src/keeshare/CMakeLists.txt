@@ -2,7 +2,6 @@ if(WITH_XC_KEESHARE)
     set(keeshare_SOURCES
         SettingsPageKeeShare.cpp
         SettingsWidgetKeeShare.cpp
-        DatabaseSettingsPageKeeShare.cpp
         DatabaseSettingsWidgetKeeShare.cpp
         group/EditGroupWidgetKeeShare.cpp
         group/EditGroupPageKeeShare.cpp
@@ -12,8 +11,6 @@ if(WITH_XC_KEESHARE)
         ShareExport.cpp
         ShareObserver.cpp
         )
-
-    find_package(Minizip REQUIRED)
 
     add_library(keeshare STATIC ${keeshare_SOURCES})
     target_link_libraries(keeshare PUBLIC Qt5::Core Qt5::Widgets ${BOTAN_LIBRARIES} ${ZLIB_LIBRARIES} PRIVATE ${MINIZIP_LIBRARIES})

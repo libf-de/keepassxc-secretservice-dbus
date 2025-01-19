@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2016 Lennart Glauer <mail@lennart-glauer.de>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #import "AppKitImpl.h"
 #import <QWindow>
 #import <Cocoa/Cocoa.h>
+#if __clang_major__ >= 13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_12_3
+#import <ScreenCaptureKit/ScreenCaptureKit.h>
+#endif
 
 @implementation AppKitImpl
 
@@ -32,21 +35,13 @@
                                                            selector:@selector(didDeactivateApplicationObserver:)
                                                                name:NSWorkspaceDidDeactivateApplicationNotification
                                                              object:nil];
-    
+
         [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self
                                                             selector:@selector(userSwitchHandler:)
                                                                 name:NSWorkspaceSessionDidResignActiveNotification
                                                                 object:nil];
 
         [NSApp addObserver:self forKeyPath:@"effectiveAppearance" options:NSKeyValueObservingOptionNew context:nil];
-
-        // Unfortunately, there is no notification for a wallpaper change, which affects
-        // the status bar colour on macOS Big Sur, but we can at least subscribe to this.
-        [[NSDistributedNotificationCenter defaultCenter] addObserver:self
-                                                            selector:@selector(interfaceThemeChanged:)
-                                                                name:@"AppleColorPreferencesChangedNotification"
-                                                              object:nil];
-
     }
     return self;
 }
@@ -168,7 +163,7 @@
 {
     if ([[notification name] isEqualToString:NSWorkspaceSessionDidResignActiveNotification] && m_appkit)
     {
-        emit m_appkit->lockDatabases();
+        emit m_appkit->userSwitched();
     }
 }
 
@@ -189,28 +184,37 @@
 //
 // Check if screen recording is enabled, may show an popup asking for permissions
 //
-- (bool) enableScreenRecording
+- (bool) enableScreenRecording 
 {
-#if __clang_major__ >= 9 && MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
-    if (@available(macOS 10.15, *)) {
-        // Request screen recording permission on macOS 10.15+
-        // This is necessary to get the current window title
-        CGDisplayStreamRef stream = CGDisplayStreamCreate(CGMainDisplayID(), 1, 1, kCVPixelFormatType_32BGRA, nil,
-                                                          ^(CGDisplayStreamFrameStatus status, uint64_t displayTime, 
-                                                                  IOSurfaceRef frameSurface, CGDisplayStreamUpdateRef updateRef) {
-                                                              Q_UNUSED(status);
-                                                              Q_UNUSED(displayTime);
-                                                              Q_UNUSED(frameSurface);
-                                                              Q_UNUSED(updateRef);
-                                                          });
-        if (stream) {
-            CFRelease(stream);
-        } else {
-            return NO;
-        }
+#if __clang_major__ >= 13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_12_3
+    if (@available(macOS 12.3, *)) {
+        __block BOOL hasPermission = NO;
+        dispatch_semaphore_t sema = dispatch_semaphore_create(0);
+
+        // Attempt to use SCShareableContent to check for screen recording permission
+        [SCShareableContent getShareableContentWithCompletionHandler:^(SCShareableContent * _Nullable content, 
+                                                                        NSError * _Nullable error) {
+            Q_UNUSED(error);
+            if (content) {
+                // Successfully obtained content, indicating permission is granted
+                hasPermission = YES;
+            } else {
+                // No permission or other error occurred
+                hasPermission = NO;
+            }
+            // Notify the semaphore that the asynchronous task is complete
+            dispatch_semaphore_signal(sema);
+        }];
+
+        // Wait for the asynchronous callback to complete
+        dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
+        dispatch_semaphore_wait(sema, timeout);
+
+        // Return the final result
+        return hasPermission;
     }
 #endif
-    return YES;
+    return YES; // Return YES for macOS versions that do not support ScreenCaptureKit
 }
 
 - (void) toggleForegroundApp:(bool) foreground

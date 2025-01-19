@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2018 Sami Vänttinen <sami.vanttinen@protonmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -82,7 +82,7 @@ void DatabaseSettingsWidgetBrowser::showEvent(QShowEvent* event)
     QWidget::showEvent(event);
 }
 
-bool DatabaseSettingsWidgetBrowser::save()
+bool DatabaseSettingsWidgetBrowser::saveSettings()
 {
     return true;
 }
@@ -102,9 +102,10 @@ void DatabaseSettingsWidgetBrowser::removeSelectedKey()
     const QItemSelectionModel* itemSelectionModel = m_ui->customDataTable->selectionModel();
     if (itemSelectionModel) {
         for (const QModelIndex& index : itemSelectionModel->selectedRows(0)) {
-            QString key = index.data().toString();
-            key.insert(0, CustomData::BrowserKeyPrefix);
+            const auto key = CustomData::getKeyWithPrefix(CustomData::BrowserKeyPrefix, index.data().toString());
+            const auto createdKey = CustomData::getKeyWithPrefix(CustomData::Created, index.data().toString());
             customData()->remove(key);
+            customData()->remove(createdKey);
         }
         updateModel();
     }
@@ -124,7 +125,7 @@ void DatabaseSettingsWidgetBrowser::updateModel()
         if (key.startsWith(CustomData::BrowserKeyPrefix)) {
             QString strippedKey = key;
             strippedKey.remove(CustomData::BrowserKeyPrefix);
-            auto created = customData()->value(QString("%1_%2").arg(CustomData::Created, strippedKey));
+            auto created = customData()->value(CustomData::getKeyWithPrefix(CustomData::Created, strippedKey));
             auto createdItem = new QStandardItem(created);
             createdItem->setEditable(false);
             m_customDataModel->appendRow(QList<QStandardItem*>()
@@ -174,10 +175,8 @@ void DatabaseSettingsWidgetBrowser::removeSharedEncryptionKeys()
     }
 
     if (keysToRemove.isEmpty()) {
-        MessageBox::information(this,
-                                tr("KeePassXC: No keys found"),
-                                tr("No shared encryption keys found in KeePassXC settings."),
-                                MessageBox::Ok);
+        MessageBox::information(
+            this, tr("No keys found"), tr("No shared encryption keys found in KeePassXC settings."), MessageBox::Ok);
         return;
     }
 
@@ -187,7 +186,7 @@ void DatabaseSettingsWidgetBrowser::removeSharedEncryptionKeys()
 
     const int count = keysToRemove.count();
     MessageBox::information(this,
-                            tr("KeePassXC: Removed keys from database"),
+                            tr("Removed keys from database"),
                             tr("Successfully removed %n encryption key(s) from KeePassXC settings.", "", count),
                             MessageBox::Ok);
 }
@@ -216,9 +215,7 @@ void DatabaseSettingsWidgetBrowser::removeStoredPermissions()
         }
 
         if (entry->customData()->contains(BrowserService::KEEPASSXCBROWSER_NAME)) {
-            entry->beginUpdate();
-            entry->customData()->remove(BrowserService::KEEPASSXCBROWSER_NAME);
-            entry->endUpdate();
+            browserService()->removePluginData(entry);
             ++counter;
         }
         progress.setValue(progress.value() + 1);
@@ -227,12 +224,12 @@ void DatabaseSettingsWidgetBrowser::removeStoredPermissions()
 
     if (counter > 0) {
         MessageBox::information(this,
-                                tr("KeePassXC: Removed permissions"),
+                                tr("Removed permissions"),
                                 tr("Successfully removed permissions from %n entry(s).", "", counter),
                                 MessageBox::Ok);
     } else {
         MessageBox::information(this,
-                                tr("KeePassXC: No entry with permissions found!"),
+                                tr("No entry with permissions found!"),
                                 tr("The active database does not contain an entry with permissions."),
                                 MessageBox::Ok);
     }
@@ -271,18 +268,16 @@ void DatabaseSettingsWidgetBrowser::editFinished(QStandardItem* item)
 
     if (itemSelectionModel) {
         auto indexList = itemSelectionModel->selectedRows(item->column());
-        if (indexList.length() > 0) {
-            QString newValue = item->index().data().toString();
+        if (!indexList.isEmpty()) {
+            auto newValue = item->index().data().toString();
 
             // The key is edited
             if (item->column() == 0) {
-                // Get the old key/value pair, remove it and replace it
-                m_valueInEdit.insert(0, CustomData::BrowserKeyPrefix);
-                auto tempValue = customData()->value(m_valueInEdit);
-                newValue.insert(0, CustomData::BrowserKeyPrefix);
+                // Update created timestamp with the new key
+                replaceKey(CustomData::Created, m_valueInEdit, newValue);
 
-                m_db->metadata()->customData()->remove(m_valueInEdit);
-                m_db->metadata()->customData()->set(newValue, tempValue);
+                // Get the old key/value pair, remove it and replace it
+                replaceKey(CustomData::BrowserKeyPrefix, m_valueInEdit, newValue);
             } else {
                 // Replace just the value
                 for (const QString& key : m_db->metadata()->customData()->keys()) {
@@ -304,4 +299,16 @@ void DatabaseSettingsWidgetBrowser::editFinished(QStandardItem* item)
 void DatabaseSettingsWidgetBrowser::updateSharedKeyList()
 {
     updateModel();
+}
+
+// Replaces a key and the created timestamp for it
+void DatabaseSettingsWidgetBrowser::replaceKey(const QString& prefix,
+                                               const QString& oldName,
+                                               const QString& newName) const
+{
+    const auto oldKey = CustomData::getKeyWithPrefix(prefix, oldName);
+    const auto newKey = CustomData::getKeyWithPrefix(prefix, newName);
+    const auto tempValue = customData()->value(oldKey);
+    m_db->metadata()->customData()->remove(oldKey);
+    m_db->metadata()->customData()->set(newKey, tempValue);
 }

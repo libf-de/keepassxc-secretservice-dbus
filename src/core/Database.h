@@ -108,11 +108,18 @@ public:
     QString canonicalFilePath() const;
     void setFilePath(const QString& filePath);
 
+    QString publicName();
+    void setPublicName(const QString& name);
+    QString publicColor();
+    void setPublicColor(const QString& color);
+    int publicIcon();
+    void setPublicIcon(int iconIndex);
+
     Metadata* metadata();
     const Metadata* metadata() const;
     Group* rootGroup();
     const Group* rootGroup() const;
-    void setRootGroup(Group* group);
+    Q_REQUIRED_RESULT Group* setRootGroup(Group* group);
     QVariantMap& publicCustomData();
     const QVariantMap& publicCustomData() const;
     void setPublicCustomData(const QVariantMap& customData);
@@ -149,6 +156,9 @@ public:
     void setKdf(QSharedPointer<Kdf> kdf);
     bool changeKdf(const QSharedPointer<Kdf>& kdf);
     QByteArray transformedDatabaseKey() const;
+
+    void markAsTemporaryDatabase();
+    bool isTemporaryDatabase();
 
     static Database* databaseByUuid(const QUuid& uuid);
 
@@ -188,30 +198,33 @@ private:
         QScopedPointer<PasswordKey> challengeResponseKey;
 
         QSharedPointer<const CompositeKey> key;
-        QSharedPointer<Kdf> kdf = QSharedPointer<AesKdf>::create(true);
+        QSharedPointer<Kdf> kdf;
 
         QVariantMap publicCustomData;
 
         DatabaseData()
-            : masterSeed(new PasswordKey())
-            , transformedDatabaseKey(new PasswordKey())
-            , challengeResponseKey(new PasswordKey())
         {
-            kdf->randomizeSeed();
+            clear();
         }
 
         void clear()
         {
+            resetKeys();
             filePath.clear();
+            publicCustomData.clear();
+        }
 
-            masterSeed.reset();
-            transformedDatabaseKey.reset();
-            challengeResponseKey.reset();
+        void resetKeys()
+        {
+            masterSeed.reset(new PasswordKey());
+            transformedDatabaseKey.reset(new PasswordKey());
+            challengeResponseKey.reset(new PasswordKey());
 
             key.reset();
-            kdf.reset();
 
-            publicCustomData.clear();
+            // Default to AES KDF, KDBX4 databases overwrite this
+            kdf.reset(new AesKdf(true));
+            kdf->randomizeSeed();
         }
     };
 
@@ -230,6 +243,7 @@ private:
     bool m_modified = false;
     bool m_hasNonDataChange = false;
     QString m_keyError;
+    bool m_isTemporaryDatabase = false;
 
     QStringList m_commonUsernames;
     QStringList m_tagList;

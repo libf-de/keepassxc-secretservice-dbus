@@ -115,6 +115,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     m_entryModifiedTimer.setSingleShot(true);
     m_entryModifiedTimer.setInterval(0);
     connect(&m_entryModifiedTimer, &QTimer::timeout, this, [this] {
+        // TODO: Upon refactor of this widget, this needs to merge unsaved changes in the UI
         if (isVisible() && m_entry) {
             setForms(m_entry);
         }
@@ -137,6 +138,47 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
 }
 
 EditEntryWidget::~EditEntryWidget() = default;
+
+bool EditEntryWidget::switchToPage(Page page)
+{
+    auto index = pageIndex(widgetForPage(page));
+    if (index >= 0) {
+        setCurrentPage(index);
+        return true;
+    }
+    return false;
+}
+
+QWidget* EditEntryWidget::widgetForPage(Page page) const
+{
+    switch (page) {
+    case Page::Main:
+        return m_mainWidget;
+    case Page::Advanced:
+        return m_advancedWidget;
+    case Page::Icon:
+        return m_iconsWidget;
+    case Page::AutoType:
+        return m_autoTypeWidget;
+    case Page::Browser:
+#ifdef WITH_XC_BROWSER
+        return m_browserWidget;
+#else
+        return nullptr;
+#endif
+    case Page::SSHAgent:
+#ifdef WITH_XC_SSHAGENT
+        return m_sshAgentWidget;
+#else
+        return nullptr;
+#endif
+    case Page::Properties:
+        return m_editWidgetProperties;
+    case Page::History:
+        return m_historyWidget;
+    }
+    return nullptr;
+}
 
 void EditEntryWidget::setupMain()
 {
@@ -660,23 +702,17 @@ void EditEntryWidget::updateSSHAgentKeyInfo()
     if (!key.fingerprint().isEmpty()) {
         m_sshAgentUi->fingerprintTextLabel->setText(key.fingerprint(QCryptographicHash::Md5) + "\n"
                                                     + key.fingerprint(QCryptographicHash::Sha256));
-    } else {
-        m_sshAgentUi->fingerprintTextLabel->setText(tr("(encrypted)"));
     }
 
-    if (!key.comment().isEmpty() || !key.encrypted()) {
+    if (!key.comment().isEmpty()) {
         m_sshAgentUi->commentTextLabel->setText(key.comment());
-    } else {
-        m_sshAgentUi->commentTextLabel->setText(tr("(encrypted)"));
-        m_sshAgentUi->decryptButton->setEnabled(true);
     }
+
+    m_sshAgentUi->decryptButton->setEnabled(key.encrypted());
 
     if (!key.publicKey().isEmpty()) {
         m_sshAgentUi->publicKeyEdit->document()->setPlainText(key.publicKey());
         m_sshAgentUi->copyToClipboardButton->setEnabled(true);
-    } else {
-        m_sshAgentUi->publicKeyEdit->document()->setPlainText(tr("(encrypted)"));
-        m_sshAgentUi->copyToClipboardButton->setDisabled(true);
     }
 
     // enable agent buttons only if we have an agent running
@@ -709,6 +745,13 @@ void EditEntryWidget::toKeeAgentSettings(KeeAgentSettings& settings) const
 
     // we don't use this either but we don't want it to dirty flag the config
     settings.setSaveAttachmentToTempFile(m_sshAgentSettings.saveAttachmentToTempFile());
+}
+
+void EditEntryWidget::updateTotp()
+{
+    if (m_entry) {
+        m_attributesModel->setEntryAttributes(m_entry->attributes());
+    }
 }
 
 void EditEntryWidget::browsePrivateKey()
@@ -783,6 +826,7 @@ void EditEntryWidget::decryptPrivateKey()
     OpenSSHKey key;
 
     if (!getOpenSSHKey(key, true)) {
+        showMessage(tr("Failed to decrypt SSH key, ensure password is correct."), MessageWidget::Error);
         return;
     }
 
@@ -796,6 +840,7 @@ void EditEntryWidget::decryptPrivateKey()
                                                 + key.fingerprint(QCryptographicHash::Sha256));
     m_sshAgentUi->publicKeyEdit->document()->setPlainText(key.publicKey());
     m_sshAgentUi->copyToClipboardButton->setEnabled(true);
+    m_sshAgentUi->decryptButton->setEnabled(false);
 }
 
 void EditEntryWidget::copyPublicKey()
@@ -867,8 +912,6 @@ void EditEntryWidget::loadEntry(Entry* entry,
     m_create = create;
     m_history = history;
 
-    connect(m_entry, &Entry::modified, this, [this] { m_entryModifiedTimer.start(); });
-
     if (history) {
         setHeadline(QString("%1 \u2022 %2").arg(parentName, tr("Entry history")));
     } else {
@@ -876,13 +919,15 @@ void EditEntryWidget::loadEntry(Entry* entry,
             setHeadline(QString("%1 \u2022 %2").arg(parentName, tr("Add entry")));
         } else {
             setHeadline(QString("%1 \u2022 %2 \u2022 %3").arg(parentName, entry->title(), tr("Edit entry")));
+            // Reload entry details if changed outside of the edit dialog
+            connect(m_entry, &Entry::modified, this, [this] { m_entryModifiedTimer.start(); });
         }
     }
 
     setForms(entry);
     setReadOnly(m_history);
 
-    setCurrentPage(0);
+    switchToPage(Page::Main);
     setPageHidden(m_historyWidget, m_history || m_entry->historyItems().count() < 1);
 #ifdef WITH_XC_SSHAGENT
     setPageHidden(m_sshAgentWidget, !sshAgent()->isEnabled());
@@ -909,6 +954,7 @@ void EditEntryWidget::setForms(Entry* entry, bool restore)
     m_mainUi->expireDatePicker->setReadOnly(m_history);
     m_mainUi->revealNotesButton->setIcon(icons()->onOffIcon("password-show", false));
     m_mainUi->revealNotesButton->setVisible(config()->get(Config::Security_HideNotes).toBool());
+    m_mainUi->revealNotesButton->setChecked(false);
     m_mainUi->notesEdit->setReadOnly(m_history);
     m_mainUi->notesEdit->setVisible(!config()->get(Config::Security_HideNotes).toBool());
     if (config()->get(Config::GUI_MonospaceNotes).toBool()) {
@@ -1126,7 +1172,7 @@ bool EditEntryWidget::commitEntry()
                                         MessageBox::Yes | MessageBox::No,
                                         MessageBox::Yes);
         if (res == MessageBox::Yes) {
-            setCurrentPage(3);
+            switchToPage(Page::AutoType);
             return false;
         }
     }
@@ -1141,7 +1187,7 @@ bool EditEntryWidget::commitEntry()
                                      MessageBox::Yes | MessageBox::No,
                                      MessageBox::Yes);
             if (res == MessageBox::Yes) {
-                setCurrentPage(3);
+                switchToPage(Page::AutoType);
                 return false;
             }
         }
@@ -1165,27 +1211,33 @@ bool EditEntryWidget::commitEntry()
     toKeeAgentSettings(m_sshAgentSettings);
 #endif
 
+    // Begin entry update
+    if (!m_create) {
+        m_entry->beginUpdate();
+    }
+
 #ifdef WITH_XC_BROWSER
     if (config()->get(Config::Browser_Enabled).toBool()) {
         updateBrowser();
     }
 #endif
 
-    if (!m_create) {
-        m_entry->beginUpdate();
-    }
-
     updateEntryData(m_entry);
 
     if (!m_create) {
         m_entry->endUpdate();
     }
+    // End entry update
 
     m_historyModel->setEntries(m_entry->historyItems(), m_entry);
+    setPageHidden(m_historyWidget, m_history || m_entry->historyItems().count() < 1);
     m_advancedUi->attachmentsWidget->linkAttachments(m_entry->attachments());
 
     showMessage(tr("Entry updated successfully."), MessageWidget::Positive);
     setModified(false);
+    // Prevent a reload due to entry modified signals
+    m_entryModifiedTimer.stop();
+
     return true;
 }
 
@@ -1210,7 +1262,10 @@ void EditEntryWidget::updateEntryData(Entry* entry) const
     entry->setPassword(m_mainUi->passwordEdit->text());
     entry->setExpires(m_mainUi->expireCheck->isChecked());
     entry->setExpiryTime(m_mainUi->expireDatePicker->dateTime().toUTC());
-    entry->setTags(m_mainUi->tagsList->tags().toSet().toList().join(";")); // remove repeated tags
+
+    QStringList uniqueTags(m_mainUi->tagsList->tags());
+    uniqueTags.removeDuplicates();
+    entry->setTags(uniqueTags.join(";"));
 
     entry->setNotes(m_mainUi->notesEdit->toPlainText());
 

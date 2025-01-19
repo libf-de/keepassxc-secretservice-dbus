@@ -26,6 +26,7 @@
 
 EntryHistoryModel::EntryHistoryModel(QObject* parent)
     : QAbstractTableModel(parent)
+    , m_systemLocale(QLocale::system())
 {
 }
 
@@ -67,7 +68,7 @@ QVariant EntryHistoryModel::data(const QModelIndex& index, int role) const
         switch (index.column()) {
         case 0:
             if (role == Qt::DisplayRole) {
-                return lastModified.toString(Qt::SystemLocaleShortDate);
+                return m_systemLocale.toString(lastModified, QLocale::ShortFormat);
             } else {
                 return lastModified;
             }
@@ -158,9 +159,10 @@ void EntryHistoryModel::deleteIndex(QModelIndex index)
 {
     auto entry = entryFromIndex(index);
     if (entry) {
-        beginRemoveRows(QModelIndex(), m_historyEntries.indexOf(entry), m_historyEntries.indexOf(entry));
-        m_historyEntries.removeAll(entry);
+        beginRemoveRows(QModelIndex(), index.row(), index.row());
+        m_historyEntries.removeAt(index.row());
         m_deletedHistoryEntries << entry;
+        calculateHistoryModifications();
         endRemoveRows();
     }
 }

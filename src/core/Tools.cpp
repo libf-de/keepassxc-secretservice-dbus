@@ -77,7 +77,6 @@ namespace Tools
 #endif
         debugInfo.append("\n");
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
         debugInfo.append(QObject::tr("Operating system: %1\nCPU architecture: %2\nKernel: %3 %4")
                              .arg(QSysInfo::prettyProductName(),
                                   QSysInfo::currentCpuArchitecture(),
@@ -85,7 +84,6 @@ namespace Tools
                                   QSysInfo::kernelVersion()));
 
         debugInfo.append("\n\n");
-#endif
 
         QString extensions;
 #ifdef WITH_XC_AUTOTYPE
@@ -126,10 +124,7 @@ namespace Tools
         constexpr auto kibibyte = 1024;
         double size = bytes;
 
-        QStringList units = QStringList() << "B"
-                                          << "KiB"
-                                          << "MiB"
-                                          << "GiB";
+        QStringList units = QStringList() << "B" << "KiB" << "MiB" << "GiB";
         int i = 0;
         int maxI = units.size() - 1;
 
@@ -138,7 +133,9 @@ namespace Tools
             i++;
         }
 
-        return QString("%1 %2").arg(QLocale().toString(size, 'f', precision), units.at(i));
+        // do not display decimals for smallest unit bytes identified by index i==0
+        const quint32 displayPrecision = (i == 0 ? 0 : precision);
+        return QString("%1 %2").arg(QLocale().toString(size, 'f', displayPrecision), units.at(i));
     }
 
     QString humanReadableTimeDifference(qint64 seconds)
@@ -228,6 +225,13 @@ namespace Tools
         QString base64 = QString::fromLatin1(ba.constData(), ba.size());
 
         return regexp.exactMatch(base64);
+    }
+
+    bool isAsciiString(const QString& str)
+    {
+        constexpr auto pattern = R"(^[\x00-\x7F]+$)";
+        QRegularExpression regexp(pattern, QRegularExpression::CaseInsensitiveOption);
+        return regexp.match(str).hasMatch();
     }
 
     void sleep(int ms)
@@ -442,34 +446,61 @@ namespace Tools
 
     QString substituteBackupFilePath(QString pattern, const QString& databasePath)
     {
-        // Fail if substitution fails
         if (databasePath.isEmpty()) {
             return {};
         }
 
-        // Replace backup pattern
-        QFileInfo dbFileInfo(databasePath);
-        QString baseName = dbFileInfo.completeBaseName();
+        const QString baseName = QFileInfo{databasePath}.completeBaseName();
 
-        pattern.replace(QString("{DB_FILENAME}"), baseName);
+        pattern.replace(QStringLiteral("{DB_FILENAME}"), baseName);
 
-        auto re = QRegularExpression(R"(\{TIME(?::([^\\]*))?\})");
+        const QDateTime now = Clock::currentDateTime();
+
+        const QRegularExpression re(R"(\{TIME(?::([^\\{}]*))?\})");
         auto match = re.match(pattern);
         while (match.hasMatch()) {
-            // Extract time format specifier
-            auto formatSpecifier = QString("dd_MM_yyyy_hh-mm-ss");
+            // Extract time format specifier, or use default value if absent
+            QString formatSpecifier = "dd_MM_yyyy_hh-mm-ss";
             if (!match.captured(1).isEmpty()) {
                 formatSpecifier = match.captured(1);
             }
-            auto replacement = Clock::currentDateTime().toString(formatSpecifier);
+            const auto replacement = now.toString(formatSpecifier);
             pattern.replace(match.capturedStart(), match.capturedLength(), replacement);
             match = re.match(pattern);
         }
 
         // Replace escaped braces
-        pattern.replace("\\{", "{");
-        pattern.replace("\\}", "}");
+        pattern.replace(QStringLiteral("\\{"), QStringLiteral("{"));
+        pattern.replace(QStringLiteral("\\}"), QStringLiteral("}"));
 
         return pattern;
+    }
+
+    MimeType toMimeType(const QString& mimeName)
+    {
+        static QStringList textFormats = {
+            "text/",
+            "application/json",
+            "application/xml",
+            "application/soap+xml",
+            "application/x-yaml",
+            "application/protobuf",
+        };
+        static QStringList imageFormats = {"image/"};
+
+        static auto isCompatible = [](const QString& format, const QStringList& list) {
+            return std::any_of(
+                list.cbegin(), list.cend(), [&format](const auto& item) { return format.startsWith(item); });
+        };
+
+        if (isCompatible(mimeName, imageFormats)) {
+            return MimeType::Image;
+        }
+
+        if (isCompatible(mimeName, textFormats)) {
+            return MimeType::PlainText;
+        }
+
+        return MimeType::Unknown;
     }
 } // namespace Tools

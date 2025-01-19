@@ -165,31 +165,32 @@ void ReportsWidgetHealthcheck::addHealthRow(QSharedPointer<PasswordHealth> healt
                                             Entry* entry,
                                             bool excluded)
 {
-    QString descr, tip;
+    QString tip;
+    QString iconName = "lock-question";
     QColor qualityColor;
     StateColorPalette statePalette;
     const auto quality = health->quality();
     switch (quality) {
     case PasswordHealth::Quality::Bad:
-        descr = tr("Bad", "Password quality");
         tip = tr("Bad — password must be changed");
+        iconName = "lock-open-alert";
         qualityColor = statePalette.color(StateColorPalette::HealthCritical);
         break;
-
     case PasswordHealth::Quality::Poor:
-        descr = tr("Poor", "Password quality");
         tip = tr("Poor — password should be changed");
+        iconName = "lock-open-alert";
         qualityColor = statePalette.color(StateColorPalette::HealthBad);
         break;
 
     case PasswordHealth::Quality::Weak:
-        descr = tr("Weak", "Password quality");
         tip = tr("Weak — consider changing the password");
+        iconName = "lock-open";
         qualityColor = statePalette.color(StateColorPalette::HealthWeak);
         break;
 
     case PasswordHealth::Quality::Good:
     case PasswordHealth::Quality::Excellent:
+        iconName = "lock";
         qualityColor = statePalette.color(StateColorPalette::HealthOk);
         break;
     }
@@ -203,7 +204,7 @@ void ReportsWidgetHealthcheck::addHealthRow(QSharedPointer<PasswordHealth> healt
     }
 
     auto row = QList<QStandardItem*>();
-    row << new QStandardItem(descr);
+    row << new QStandardItem(Icons::instance()->icon(iconName, true, qualityColor), "");
     row << new QStandardItem(Icons::entryIconPixmap(entry), title);
     row << new QStandardItem(Icons::groupIconPixmap(group), group->hierarchy().join("/"));
     row << new QStandardItem(QString::number(health->score()));
@@ -214,7 +215,6 @@ void ReportsWidgetHealthcheck::addHealthRow(QSharedPointer<PasswordHealth> healt
     // invisible, it's just for screen readers etc.
     QBrush brush(qualityColor);
     row[0]->setForeground(brush);
-    row[0]->setBackground(brush);
 
     // Set tooltips
     row[0]->setToolTip(tip);
@@ -323,6 +323,11 @@ void ReportsWidgetHealthcheck::customMenuRequested(QPoint pos)
         });
     }
 
+    // Create the "Expire entry" menu item
+    const auto expEntry = new QAction(icons()->icon("entry-expire"), tr("Expire Entry(s)…", "", selected.size()), this);
+    menu->addAction(expEntry);
+    connect(expEntry, &QAction::triggered, this, &ReportsWidgetHealthcheck::expireSelectedEntries);
+
     // Create the "delete entry" menu item
     const auto delEntry = new QAction(icons()->icon("entry-delete"), tr("Delete Entry(s)…", "", selected.size()), this);
     menu->addAction(delEntry);
@@ -365,7 +370,7 @@ void ReportsWidgetHealthcheck::saveSettings()
     // nothing to do - the tab is passive
 }
 
-void ReportsWidgetHealthcheck::deleteSelectedEntries()
+QList<Entry*> ReportsWidgetHealthcheck::getSelectedEntries()
 {
     QList<Entry*> selectedEntries;
     for (auto index : m_ui->healthcheckTableView->selectionModel()->selectedRows()) {
@@ -375,7 +380,21 @@ void ReportsWidgetHealthcheck::deleteSelectedEntries()
             selectedEntries << entry;
         }
     }
+    return selectedEntries;
+}
 
+void ReportsWidgetHealthcheck::expireSelectedEntries()
+{
+    for (auto entry : getSelectedEntries()) {
+        entry->expireNow();
+    }
+
+    calculateHealth();
+}
+
+void ReportsWidgetHealthcheck::deleteSelectedEntries()
+{
+    QList<Entry*> selectedEntries = getSelectedEntries();
     bool permanent = !m_db->metadata()->recycleBinEnabled();
     if (GuiTools::confirmDeleteEntries(this, selectedEntries, permanent)) {
         GuiTools::deleteEntriesResolveReferences(this, selectedEntries, permanent);

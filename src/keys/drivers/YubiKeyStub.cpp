@@ -45,15 +45,14 @@ void YubiKey::findValidKeysAsync()
 {
 }
 
-QList<YubiKeySlot> YubiKey::foundKeys()
+YubiKey::KeyMap YubiKey::foundKeys()
 {
     return {};
 }
 
-QString YubiKey::getDisplayName(YubiKeySlot slot)
+int YubiKey::connectedKeys()
 {
-    Q_UNUSED(slot);
-    return {};
+    return 0;
 }
 
 QString YubiKey::errorMessage()

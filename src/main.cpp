@@ -19,6 +19,7 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFile>
+#include <QThreadPool>
 #include <QWindow>
 
 #include "cli/Utils.h"
@@ -52,10 +53,8 @@ int main(int argc, char** argv)
 {
     QT_REQUIRE_VERSION(argc, argv, QT_VERSION_STR)
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-#endif
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && defined(Q_OS_WIN)
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 #endif
@@ -65,6 +64,12 @@ int main(int argc, char** argv)
     Application::setApplicationName("KeePassXC");
     Application::setApplicationVersion(KEEPASSXC_VERSION);
     app.setProperty("KPXC_QUALIFIED_APPNAME", "org.keepassxc.KeePassXC");
+
+    // HACK: Prevent long-running threads from deadlocking the program with only 1 CPU
+    // See https://github.com/keepassxreboot/keepassxc/issues/10391
+    if (QThreadPool::globalInstance()->maxThreadCount() < 2) {
+        QThreadPool::globalInstance()->setMaxThreadCount(2);
+    }
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QObject::tr("KeePassXC - cross-platform password manager"));
@@ -102,7 +107,7 @@ int main(int argc, char** argv)
     if (parser.isSet(debugInfoOption)) {
         QTextStream out(stdout, QIODevice::WriteOnly);
         QString debugInfo = Tools::debugInfo().append("\n").append(Crypto::debugInfo());
-        out << debugInfo << endl;
+        out << debugInfo << Qt::endl;
         return EXIT_SUCCESS;
     }
 
@@ -138,7 +143,7 @@ int main(int argc, char** argv)
     if (app.isAlreadyRunning()) {
         if (parser.isSet(lockOption)) {
             if (app.sendLockToInstance()) {
-                qInfo() << QObject::tr("Locked databases.").toUtf8().constData();
+                qInfo() << QObject::tr("Databases have been locked.").toUtf8().constData();
             } else {
                 qWarning() << QObject::tr("Database failed to lock.").toUtf8().constData();
                 return EXIT_FAILURE;
@@ -169,14 +174,14 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    Utils::setDefaultTextStreams();
+
     // Apply the configured theme before creating any GUI elements
     app.applyTheme();
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
     QGuiApplication::setDesktopFileName(app.property("KPXC_QUALIFIED_APPNAME").toString() + QStringLiteral(".desktop"));
-#endif
 
-    Application::bootstrap();
+    Application::bootstrap(config()->get(Config::GUI_Language).toString());
 
     MainWindow mainWindow;
 #ifdef Q_OS_WIN
@@ -189,16 +194,13 @@ int main(int argc, char** argv)
     mainWindow.setAllowScreenCapture(parser.isSet(allowScreenCaptureOption));
 
     const bool pwstdin = parser.isSet(pwstdinOption);
-    if (!fileNames.isEmpty() && pwstdin) {
-        Utils::setDefaultTextStreams();
-    }
     for (const QString& filename : fileNames) {
         QString password;
         if (pwstdin) {
             // we always need consume a line of STDIN if --pw-stdin is set to clear out the
             // buffer for native messaging, even if the specified file does not exist
             QTextStream out(stdout, QIODevice::WriteOnly);
-            out << QObject::tr("Database password: ") << flush;
+            out << QObject::tr("Database password: ") << Qt::flush;
             password = Utils::getPassword();
         }
         mainWindow.openDatabase(filename, password, parser.value(keyfileOption));
@@ -224,6 +226,8 @@ int main(int argc, char** argv)
     __lsan_do_leak_check();
     __lsan_disable();
 #endif
+
+    Utils::resetTextStreams();
 
     return exitCode;
 }

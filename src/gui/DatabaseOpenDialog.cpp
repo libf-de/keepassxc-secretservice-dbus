@@ -83,7 +83,7 @@ DatabaseOpenDialog::DatabaseOpenDialog(QWidget* parent)
 void DatabaseOpenDialog::showEvent(QShowEvent* event)
 {
     QDialog::showEvent(event);
-    QTimer::singleShot(100, this, [=] {
+    QTimer::singleShot(100, this, [this] {
         if (m_view->isOnQuickUnlockScreen() && !m_view->unlockingDatabase()) {
             m_view->triggerQuickUnlock();
         }
@@ -201,6 +201,9 @@ void DatabaseOpenDialog::complete(bool accepted)
 {
     // save DB, since DatabaseOpenWidget will reset its data after accept() is called
     m_db = m_view->database();
+    if (m_db && m_intent == Intent::RemoteSync) {
+        m_db->markAsTemporaryDatabase();
+    }
 
     if (accepted) {
         accept();
@@ -210,4 +213,11 @@ void DatabaseOpenDialog::complete(bool accepted)
 
     emit dialogFinished(accepted, m_currentDbWidget);
     clearForms();
+}
+
+void DatabaseOpenDialog::closeEvent(QCloseEvent* e)
+{
+    emit dialogFinished(false, m_currentDbWidget);
+    clearForms();
+    QDialog::closeEvent(e);
 }

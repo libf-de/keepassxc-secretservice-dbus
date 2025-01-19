@@ -20,18 +20,18 @@
 #include "ui_EntryPreviewWidget.h"
 
 #include "Application.h"
+#include "core/Clock.h"
 #include "core/Config.h"
-#include "gui/Clipboard.h"
+#include "core/Totp.h"
 #include "gui/Font.h"
 #include "gui/Icons.h"
-#include "totp/totp.h"
 #if defined(WITH_XC_KEESHARE)
 #include "keeshare/KeeShare.h"
 #include "keeshare/KeeShareSettings.h"
 #endif
 
 #include <QScrollBar>
-
+#include <QTabWidget>
 namespace
 {
     constexpr int GeneralTabIndex = 0;
@@ -50,7 +50,7 @@ EntryPreviewWidget::EntryPreviewWidget(QWidget* parent)
 
     // Entry
     m_ui->entryTotpButton->setIcon(icons()->icon("totp"));
-    m_ui->entryCloseButton->setIcon(icons()->icon("dialog-close"));
+    m_ui->entryCloseButton->setIcon(icons()->icon("arrow-collapse-down"));
     m_ui->toggleUsernameButton->setIcon(icons()->onOffIcon("password-show", true));
     m_ui->togglePasswordButton->setIcon(icons()->onOffIcon("password-show", true));
     m_ui->toggleEntryNotesButton->setIcon(icons()->onOffIcon("password-show", true));
@@ -85,10 +85,10 @@ EntryPreviewWidget::EntryPreviewWidget(QWidget* parent)
     });
     connect(&m_totpTimer, SIGNAL(timeout()), SLOT(updateTotpLabel()));
 
-    connect(m_ui->entryAttributesTable, &QTableWidget::itemDoubleClicked, this, [](QTableWidgetItem* item) {
+    connect(m_ui->entryAttributesTable, &QTableWidget::itemDoubleClicked, this, [this](QTableWidgetItem* item) {
         auto userData = item->data(Qt::UserRole);
         if (userData.isValid()) {
-            clipboard()->setText(userData.toString());
+            emit copyTextRequested(userData.toString());
         }
     });
 
@@ -117,7 +117,7 @@ bool EntryPreviewWidget::eventFilter(QObject* object, QEvent* event)
 {
     if (object == m_ui->entryTotpLabel && event->type() == QEvent::MouseButtonDblClick) {
         if (m_currentEntry && m_currentEntry->hasTotp()) {
-            clipboard()->setText(m_currentEntry->totp());
+            emit copyTextRequested(m_currentEntry->totp());
             m_ui->entryTotpLabel->clearFocus();
             return true;
         }
@@ -302,9 +302,11 @@ void EntryPreviewWidget::setPasswordVisible(bool state)
                 html += "<span style=\"color: " + QString(color) + ";\">" + QString(c).toHtmlEscaped() + "</span>";
             }
             // clang-format on
+            m_ui->entryPasswordLabel->setTextFormat(Qt::RichText);
             m_ui->entryPasswordLabel->setText(html);
         } else {
             // No color
+            m_ui->entryPasswordLabel->setTextFormat(Qt::PlainText);
             m_ui->entryPasswordLabel->setText(password);
         }
     } else if (password.isEmpty() && !config()->get(Config::Security_PasswordEmptyPlaceholder).toBool()) {
@@ -321,7 +323,8 @@ void EntryPreviewWidget::setPasswordVisible(bool state)
 
 void EntryPreviewWidget::setEntryNotesVisible(bool state)
 {
-    setNotesVisible(m_ui->entryNotesTextEdit, m_currentEntry->notes(), state);
+    setNotesVisible(
+        m_ui->entryNotesTextEdit, m_currentEntry->resolveMultiplePlaceholders(m_currentEntry->notes()), state);
     m_ui->toggleEntryNotesButton->setIcon(icons()->onOffIcon("password-show", state));
 }
 
@@ -386,7 +389,7 @@ void EntryPreviewWidget::updateEntryGeneralTab()
         m_ui->entryNotesTextEdit->setFont(Font::defaultFont());
     }
 
-    m_ui->entryUrlLabel->setRawText(m_currentEntry->displayUrl());
+    m_ui->entryUrlLabel->setRawText(m_currentEntry->displayUrl().toHtmlEscaped());
     const QString url = m_currentEntry->url();
     if (!url.isEmpty()) {
         // URL is well formed and can be opened in a browser
@@ -399,8 +402,7 @@ void EntryPreviewWidget::updateEntryGeneralTab()
     }
 
     const TimeInfo entryTime = m_currentEntry->timeInfo();
-    const QString expires =
-        entryTime.expires() ? entryTime.expiryTime().toLocalTime().toString(Qt::DefaultLocaleShortDate) : tr("Never");
+    const QString expires = entryTime.expires() ? Clock::toString(entryTime.expiryTime().toLocalTime()) : tr("Never");
     m_ui->entryExpirationLabel->setText(expires);
     m_ui->entryTagsList->tags(m_currentEntry->tagList());
     m_ui->entryTagsList->setReadOnly(true);
@@ -428,6 +430,8 @@ void EntryPreviewWidget::updateEntryAdvancedTab()
             m_ui->entryAttributesTable->item(i, 0)->setFont(font);
             m_ui->entryAttributesTable->item(i, 0)->setTextAlignment(Qt::AlignTop | Qt::AlignLeft);
 
+            auto value = m_currentEntry->resolveMultiplePlaceholders(attributes->value(key));
+
             if (attributes->isProtected(key)) {
                 // only show the reveal button on protected attributes
                 auto button = new QToolButton();
@@ -454,10 +458,10 @@ void EntryPreviewWidget::updateEntryAdvancedTab()
                 m_ui->entryAttributesTable->setCellWidget(i, 1, button);
                 m_ui->entryAttributesTable->setItem(i, 2, new QTableWidgetItem(QString("\u25cf").repeated(6)));
             } else {
-                m_ui->entryAttributesTable->setItem(i, 2, new QTableWidgetItem(attributes->value(key)));
+                m_ui->entryAttributesTable->setItem(i, 2, new QTableWidgetItem(value));
             }
 
-            m_ui->entryAttributesTable->item(i, 2)->setData(Qt::UserRole, attributes->value(key));
+            m_ui->entryAttributesTable->item(i, 2)->setData(Qt::UserRole, value);
             m_ui->entryAttributesTable->item(i, 2)->setToolTip(tr("Double click to copy value"));
             m_ui->entryAttributesTable->item(i, 2)->setTextAlignment(Qt::AlignTop | Qt::AlignLeft);
 
@@ -509,8 +513,7 @@ void EntryPreviewWidget::updateGroupGeneralTab()
     m_ui->groupAutotypeLabel->setText(autotypeText);
 
     const TimeInfo groupTime = m_currentGroup->timeInfo();
-    const QString expiresText =
-        groupTime.expires() ? groupTime.expiryTime().toString(Qt::DefaultLocaleShortDate) : tr("Never");
+    const QString expiresText = groupTime.expires() ? Clock::toString(groupTime.expiryTime()) : tr("Never");
     m_ui->groupExpirationLabel->setText(expiresText);
 
     if (config()->get(Config::Security_HideNotes).toBool()) {

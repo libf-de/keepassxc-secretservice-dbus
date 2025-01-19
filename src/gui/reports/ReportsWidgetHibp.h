@@ -24,7 +24,7 @@
 #include <QWidget>
 
 #ifdef WITH_XC_NETWORKING
-#include "core/HibpDownloader.h"
+#include "networking/HibpDownloader.h"
 #endif
 
 class Database;
@@ -58,6 +58,8 @@ public slots:
     void fetchFailed(const QString& error);
     void makeHibpTable();
     void customMenuRequested(QPoint);
+    QList<Entry*> getSelectedEntries();
+    void expireSelectedEntries();
     void deleteSelectedEntries();
 
 private:

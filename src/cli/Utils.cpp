@@ -20,6 +20,7 @@
 #include "core/Database.h"
 #include "core/Entry.h"
 #include "core/EntryAttributes.h"
+#include "core/Global.h"
 #include "keys/FileKey.h"
 #ifdef WITH_XC_YUBIKEY
 #include "keys/ChallengeResponseKey.h"
@@ -41,6 +42,11 @@ namespace Utils
     QTextStream STDERR;
     QTextStream STDIN;
     QTextStream DEVNULL;
+
+#ifdef Q_OS_WIN
+    UINT origCodePage;
+    UINT origOutputCodePage;
+#endif
 
     void setDefaultTextStreams()
     {
@@ -65,10 +71,21 @@ namespace Utils
         DEVNULL.setDevice(fd);
 
 #ifdef Q_OS_WIN
+        origCodePage = GetConsoleCP();
+        origOutputCodePage = GetConsoleOutputCP();
+
         // On Windows, we ask via keepassxc-cli.exe.manifest to use UTF-8,
         // but the console code-page isn't automatically changed to match.
         SetConsoleCP(GetACP());
         SetConsoleOutputCP(GetACP());
+#endif
+    }
+
+    void resetTextStreams()
+    {
+#ifdef Q_OS_WIN
+        SetConsoleCP(origCodePage);
+        SetConsoleOutputCP(origOutputCodePage);
 #endif
     }
 
@@ -111,22 +128,22 @@ namespace Utils
 
         QFileInfo dbFileInfo(databaseFilename);
         if (dbFileInfo.canonicalFilePath().isEmpty()) {
-            err << QObject::tr("Failed to open database file %1: not found").arg(databaseFilename) << endl;
+            err << QObject::tr("Failed to open database file %1: not found").arg(databaseFilename) << Qt::endl;
             return {};
         }
 
         if (!dbFileInfo.isFile()) {
-            err << QObject::tr("Failed to open database file %1: not a plain file").arg(databaseFilename) << endl;
+            err << QObject::tr("Failed to open database file %1: not a plain file").arg(databaseFilename) << Qt::endl;
             return {};
         }
 
         if (!dbFileInfo.isReadable()) {
-            err << QObject::tr("Failed to open database file %1: not readable").arg(databaseFilename) << endl;
+            err << QObject::tr("Failed to open database file %1: not readable").arg(databaseFilename) << Qt::endl;
             return {};
         }
 
         if (isPasswordProtected) {
-            err << QObject::tr("Enter password to unlock %1: ").arg(databaseFilename) << flush;
+            err << QObject::tr("Enter password to unlock %1: ").arg(databaseFilename) << Qt::flush;
             QString line = Utils::getPassword(quiet);
             auto passwordKey = QSharedPointer<PasswordKey>::create();
             passwordKey->setPassword(line);
@@ -138,7 +155,7 @@ namespace Utils
             QString errorMessage;
             // LCOV_EXCL_START
             if (!fileKey->load(keyFilename, &errorMessage)) {
-                err << QObject::tr("Failed to load key file %1: %2").arg(keyFilename, errorMessage) << endl;
+                err << QObject::tr("Failed to load key file %1: %2").arg(keyFilename, errorMessage) << Qt::endl;
                 return {};
             }
 
@@ -146,7 +163,7 @@ namespace Utils
                 err << QObject::tr("WARNING: You are using an old key file format which KeePassXC may\n"
                                    "stop supporting in the future.\n\n"
                                    "Please consider generating a new key file.")
-                    << endl;
+                    << Qt::endl;
             }
             // LCOV_EXCL_STOP
 
@@ -163,20 +180,20 @@ namespace Utils
             slot = parts[0].toInt(&ok);
 
             if (!ok || (slot != 1 && slot != 2)) {
-                err << QObject::tr("Invalid YubiKey slot %1").arg(parts[0]) << endl;
+                err << QObject::tr("Invalid YubiKey slot %1").arg(parts[0]) << Qt::endl;
                 return {};
             }
 
             if (parts.size() > 1) {
                 serial = parts[1].toUInt(&ok, 10);
                 if (!ok) {
-                    err << QObject::tr("Invalid YubiKey serial %1").arg(parts[1]) << endl;
+                    err << QObject::tr("Invalid YubiKey serial %1").arg(parts[1]) << Qt::endl;
                     return {};
                 }
             }
 
             QObject::connect(YubiKey::instance(), &YubiKey::userInteractionRequest, [&] {
-                err << QObject::tr("Please present or touch your YubiKey to continue.") << "\n\n" << flush;
+                err << QObject::tr("Please present or touch your YubiKey to continue.") << "\n\n" << Qt::flush;
             });
 
             auto key = QSharedPointer<ChallengeResponseKey>(new ChallengeResponseKey({serial, slot}));
@@ -193,7 +210,7 @@ namespace Utils
         if (db->open(databaseFilename, compositeKey, &error)) {
             return db;
         } else {
-            err << error << endl;
+            err << error << Qt::endl;
             return {};
         }
     }
@@ -218,7 +235,7 @@ namespace Utils
         setStdinEcho(false);
         QString line = in.readLine();
         setStdinEcho(true);
-        out << endl;
+        out << Qt::endl;
 
         return line;
 #endif // __AFL_COMPILER
@@ -248,7 +265,7 @@ namespace Utils
             if (ans.toLower().startsWith("y")) {
                 passwordKey = QSharedPointer<PasswordKey>::create("");
             }
-            err << endl;
+            err << Qt::endl;
         } else {
             err << QObject::tr("Repeat password: ");
             err.flush();
@@ -257,7 +274,7 @@ namespace Utils
             if (password == repeat) {
                 passwordKey = QSharedPointer<PasswordKey>::create(password);
             } else {
-                err << QObject::tr("Error: Passwords do not match.") << endl;
+                err << QObject::tr("Error: Passwords do not match.") << Qt::endl;
             }
         }
 
@@ -303,7 +320,7 @@ namespace Utils
             QScopedPointer<QProcess> clipProcess(new QProcess(nullptr));
 
             // Skip empty parts, otherwise the program may clip the empty string
-            QStringList progArgs = prog.second.split(" ", QString::SkipEmptyParts);
+            QStringList progArgs = prog.second.split(" ", Qt::SkipEmptyParts);
 
             clipProcess->start(prog.first, progArgs);
             clipProcess->waitForStarted();
@@ -329,6 +346,8 @@ namespace Utils
 
             if (clipProcess->exitCode() == EXIT_SUCCESS) {
                 return EXIT_SUCCESS;
+            } else {
+                failedProgramNames.append(prog.first);
             }
         }
 
@@ -425,13 +444,13 @@ namespace Utils
             fileKey->create(path, &error);
 
             if (!error.isEmpty()) {
-                err << QObject::tr("Creating KeyFile %1 failed: %2").arg(path, error) << endl;
+                err << QObject::tr("Creating KeyFile %1 failed: %2").arg(path, error) << Qt::endl;
                 return false;
             }
         }
 
         if (!fileKey->load(path, &error)) {
-            err << QObject::tr("Loading KeyFile %1 failed: %2").arg(path, error) << endl;
+            err << QObject::tr("Loading KeyFile %1 failed: %2").arg(path, error) << Qt::endl;
             return false;
         }
 

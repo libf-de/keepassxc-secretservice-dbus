@@ -18,6 +18,7 @@
 #include "Remove.h"
 
 #include "Utils.h"
+#include "core/Global.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 
@@ -35,10 +36,10 @@ int Remove::executeWithDatabase(QSharedPointer<Database> database, QSharedPointe
     auto& out = parser->isSet(Command::QuietOption) ? Utils::DEVNULL : Utils::STDOUT;
     auto& err = Utils::STDERR;
 
-    auto& entryPath = parser->positionalArguments().at(1);
+    auto entryPath = parser->positionalArguments().at(1);
     QPointer<Entry> entry = database->rootGroup()->findEntryByPath(entryPath);
     if (!entry) {
-        err << QObject::tr("Entry %1 not found.").arg(entryPath) << endl;
+        err << QObject::tr("Entry %1 not found.").arg(entryPath) << Qt::endl;
         return EXIT_FAILURE;
     }
 
@@ -50,18 +51,18 @@ int Remove::executeWithDatabase(QSharedPointer<Database> database, QSharedPointe
         recycled = false;
     } else {
         database->recycleEntry(entry);
-    };
+    }
 
     QString errorMessage;
     if (!database->save(Database::Atomic, {}, &errorMessage)) {
-        err << QObject::tr("Unable to save database to file: %1").arg(errorMessage) << endl;
+        err << QObject::tr("Unable to save database to file: %1").arg(errorMessage) << Qt::endl;
         return EXIT_FAILURE;
     }
 
     if (recycled) {
-        out << QObject::tr("Successfully recycled entry %1.").arg(entryTitle) << endl;
+        out << QObject::tr("Successfully recycled entry %1.").arg(entryTitle) << Qt::endl;
     } else {
-        out << QObject::tr("Successfully deleted entry %1.").arg(entryTitle) << endl;
+        out << QObject::tr("Successfully deleted entry %1.").arg(entryTitle) << Qt::endl;
     }
 
     return EXIT_SUCCESS;

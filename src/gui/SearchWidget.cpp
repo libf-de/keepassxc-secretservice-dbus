@@ -16,11 +16,13 @@
  */
 
 #include "SearchWidget.h"
+#include "gui/MainWindow.h"
 #include "ui_SearchHelpWidget.h"
 #include "ui_SearchWidget.h"
 
 #include <QKeyEvent>
 #include <QMenu>
+#include <QShortcut>
 #include <QToolButton>
 
 #include "core/SignalMultiplexer.h"
@@ -42,6 +44,8 @@ SearchWidget::SearchWidget(QWidget* parent)
 
     m_searchTimer->setSingleShot(true);
     m_clearSearchTimer->setSingleShot(true);
+
+    new QShortcut(Qt::CTRL + Qt::Key_J, this, SLOT(toggleHelp()), nullptr, Qt::WidgetWithChildrenShortcut);
 
     connect(m_ui->searchEdit, SIGNAL(textChanged(QString)), SLOT(startSearchTimer()));
     connect(m_ui->helpIcon, SIGNAL(triggered()), SLOT(toggleHelp()));
@@ -91,10 +95,21 @@ bool SearchWidget::eventFilter(QObject* obj, QEvent* event)
             emit escapePressed();
             return true;
         } else if (keyEvent->matches(QKeySequence::Copy)) {
-            // If Control+C is pressed in the search edit when no text
-            // is selected, copy the password of the current entry.
+            // If the system Copy shortcut (typically Ctrl+C or Cmd+C) is pressed
+            // in the search edit when no text is selected, route the event to the
+            // main window. With the default shortcut configuration, this will copy
+            // the password of the current entry to the clipboard.
             if (!m_ui->searchEdit->hasSelectedText()) {
-                emit copyPressed();
+                // Prevent infinite recursion, in case the main window ends up
+                // sending this event back to us. This hasn't actually been observed
+                // in practice and is just a precaution.
+                static bool sendingCopyShortcutEvent = false;
+                if (sendingCopyShortcutEvent) {
+                    return true;
+                }
+                sendingCopyShortcutEvent = true;
+                QCoreApplication::sendEvent(getMainWindow(), event);
+                sendingCopyShortcutEvent = false;
                 return true;
             }
         } else if (keyEvent->matches(QKeySequence::MoveToNextLine)) {
@@ -132,7 +147,6 @@ void SearchWidget::connectSignals(SignalMultiplexer& mx)
     mx.connect(this, SIGNAL(saveSearch(QString)), SLOT(saveSearch(QString)));
     mx.connect(this, SIGNAL(caseSensitiveChanged(bool)), SLOT(setSearchCaseSensitive(bool)));
     mx.connect(this, SIGNAL(limitGroupChanged(bool)), SLOT(setSearchLimitGroup(bool)));
-    mx.connect(this, SIGNAL(copyPressed()), SLOT(copyPassword()));
     mx.connect(this, SIGNAL(downPressed()), SLOT(focusOnEntries()));
     mx.connect(SIGNAL(requestSearch(QString)), m_ui->searchEdit, SLOT(setText(QString)));
     mx.connect(SIGNAL(clearSearch()), this, SLOT(clearSearch()));

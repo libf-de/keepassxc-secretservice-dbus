@@ -482,6 +482,7 @@ void EntryView::resetViewToDefaults()
     header()->hideSection(EntryModel::Size);
     header()->hideSection(EntryModel::PasswordStrength);
     header()->hideSection(EntryModel::Color);
+    header()->hideSection(EntryModel::ParentGroupPath);
     onHeaderChanged();
 
     // Reset column order to logical indices
@@ -570,17 +571,10 @@ void EntryView::startDrag(Qt::DropActions supportedActions)
 
     // Grab the screen pixel ratio where the window resides
     // TODO: Use direct call to screen() when moving to Qt 6
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
     auto screen = QGuiApplication::screenAt(window()->geometry().center());
     if (!screen) {
         screen = QGuiApplication::primaryScreen();
     }
-#else
-    auto screen = QGuiApplication::primaryScreen();
-    if (windowHandle()) {
-        screen = windowHandle()->screen();
-    }
-#endif
 
     auto pixelRatio = screen->devicePixelRatio();
 

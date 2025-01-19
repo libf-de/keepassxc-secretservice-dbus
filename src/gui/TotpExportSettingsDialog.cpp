@@ -17,14 +17,15 @@
 
 #include "TotpExportSettingsDialog.h"
 
+#include "core/Totp.h"
 #include "gui/Clipboard.h"
 #include "gui/MainWindow.h"
 #include "gui/SquareSvgWidget.h"
 #include "qrcode/QrCode.h"
-#include "totp/totp.h"
 
 #include <QBoxLayout>
 #include <QBuffer>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -70,7 +71,7 @@ TotpExportSettingsDialog::TotpExportSettingsDialog(DatabaseWidget* parent, Entry
     m_timer->start(1000);
 
     const auto totpSettings = entry->totpSettings();
-    if (totpSettings->custom || !totpSettings->encoder.shortName.isEmpty()) {
+    if (Totp::hasCustomSettings(totpSettings) || !totpSettings->encoder.shortName.isEmpty()) {
         m_warningLabel->setWordWrap(true);
         m_warningLabel->setMargin(5);
         m_warningLabel->setText(tr("NOTE: These TOTP settings are custom and may not work with other authenticators.",

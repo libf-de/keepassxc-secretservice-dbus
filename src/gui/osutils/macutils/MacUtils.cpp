@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ MacUtils::MacUtils(QObject* parent)
     : OSUtilsBase(parent)
     , m_appkit(new AppKit())
 {
-    connect(m_appkit.data(), SIGNAL(lockDatabases()), SIGNAL(lockDatabases()));
+    connect(m_appkit.data(), SIGNAL(userSwitched()), SIGNAL(userSwitched()));
     connect(m_appkit.data(), SIGNAL(interfaceThemeChanged()), SIGNAL(interfaceThemeChanged()));
     connect(m_appkit.data(), &AppKit::interfaceThemeChanged, this, [this]() {
         // Emit with delay, since isStatusBarDark() still returns the old value
@@ -130,6 +130,8 @@ void MacUtils::setLaunchAtStartup(bool enable)
     if (enable) {
         QSettings agent(getLaunchAgentFilename(), QSettings::NativeFormat);
         agent.setValue("Label", qApp->property("KPXC_QUALIFIED_APPNAME").toString());
+        agent.setValue("AssociatedBundleIdentifiers", qApp->property("KPXC_QUALIFIED_APPNAME").toString());
+        agent.setValue("Program", QApplication::applicationFilePath());
         agent.setValue("ProgramArguments", QStringList() << QApplication::applicationFilePath());
         agent.setValue("RunAtLoad", true);
         agent.setValue("StandardErrorPath", "/dev/null");
@@ -146,6 +148,15 @@ bool MacUtils::isCapslockEnabled()
 #else
     return false;
 #endif
+}
+
+void MacUtils::setUserInputProtection(bool enable)
+{
+    if (enable) {
+        EnableSecureEventInput();
+    } else {
+        DisableSecureEventInput();
+    }
 }
 
 /**

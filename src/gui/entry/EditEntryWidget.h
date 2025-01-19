@@ -77,6 +77,19 @@ public:
     Entry* currentEntry() const;
     void clear();
 
+    enum class Page
+    {
+        Main,
+        Advanced,
+        Icon,
+        AutoType,
+        Browser,
+        SSHAgent,
+        Properties,
+        History
+    };
+    bool switchToPage(Page page);
+
 signals:
     void editFinished(bool accepted);
     void historyEntryActivated(Entry* entry);
@@ -118,6 +131,7 @@ private slots:
     void updateSSHAgentAttachment();
     void updateSSHAgentAttachments();
     void updateSSHAgentKeyInfo();
+    void updateTotp();
     void browsePrivateKey();
     void addKeyToAgent();
     void removeKeyFromAgent();
@@ -151,7 +165,6 @@ private:
     void setupEntryUpdate();
     void setupColorButton(bool foreground, const QColor& color);
 
-    bool passwordsEqual();
     void setForms(Entry* entry, bool restore = false);
     QMenu* createPresetsMenu();
     void updateEntryData(Entry* entry) const;
@@ -161,6 +174,8 @@ private:
 #endif
 
     void displayAttribute(QModelIndex index, bool showProtected);
+
+    QWidget* widgetForPage(Page page) const;
 
     QPointer<Entry> m_entry;
     QSharedPointer<Database> m_db;

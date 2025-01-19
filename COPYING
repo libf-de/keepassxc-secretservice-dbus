@@ -137,22 +137,27 @@ Files: share/icons/badges/2_Expired.svg
        share/icons/database/C46_Help.svg
        share/icons/database/C53_Apply.svg
        share/icons/database/C61_Services.svg
+       share/icons/application/scalable/actions/proton.svg
 Copyright: 2022 KeePassXC Team <team@keepassxc.org>
 License: MIT
 
 Files: share/icons/application/scalable/actions/application-exit.svg
+       share/icons/application/scalable/actions/arrow-collapse-down.svg
        share/icons/application/scalable/actions/attributes-copy.svg
        share/icons/application/scalable/actions/auto-type.svg
+       share/icons/application/scalable/actions/bitwarden.svg
        share/icons/application/scalable/actions/bugreport.svg
        share/icons/application/scalable/actions/chevron-double-down.svg
        share/icons/application/scalable/actions/chevron-double-right.svg
        share/icons/application/scalable/actions/clipboard-text.svg
        share/icons/application/scalable/actions/configure.svg
+       share/icons/application/scalable/actions/csv.svg
        share/icons/application/scalable/actions/database-change-key.svg
        share/icons/application/scalable/actions/database-lock.svg
        share/icons/application/scalable/actions/database-lock-all.svg
        share/icons/application/scalable/actions/database-merge.svg
        share/icons/application/scalable/actions/database-search.svg
+       share/icons/application/scalable/actions/database-settings.svg
        share/icons/application/scalable/actions/dialog-close.svg
        share/icons/application/scalable/actions/dialog-ok.svg
        share/icons/application/scalable/actions/document-close.svg
@@ -173,6 +178,7 @@ Files: share/icons/application/scalable/actions/application-exit.svg
        share/icons/application/scalable/actions/entry-delete.svg
        share/icons/application/scalable/actions/entry-restore.svg
        share/icons/application/scalable/actions/entry-edit.svg
+       share/icons/application/scalable/actions/entry-expire.svg
        share/icons/application/scalable/actions/entry-new.svg
        share/icons/application/scalable/actions/favicon-download.svg
        share/icons/application/scalable/actions/fingerprint.svg
@@ -192,6 +198,7 @@ Files: share/icons/application/scalable/actions/application-exit.svg
        share/icons/application/scalable/actions/move-up.svg
        share/icons/application/scalable/actions/object-locked.svg
        share/icons/application/scalable/actions/object-unlocked.svg
+       share/icons/application/scalable/actions/onepassword.svg
        share/icons/application/scalable/actions/paperclip.svg
        share/icons/application/scalable/actions/password-copy.svg
        share/icons/application/scalable/actions/passkey.svg
@@ -200,6 +207,7 @@ Files: share/icons/application/scalable/actions/application-exit.svg
        share/icons/application/scalable/actions/password-show-on.svg
        share/icons/application/scalable/actions/qrcode.svg
        share/icons/application/scalable/actions/refresh.svg
+       share/icons/application/scalable/actions/remote-sync.svg
        share/icons/application/scalable/actions/reports.svg
        share/icons/application/scalable/actions/reports-exclude.svg
        share/icons/application/scalable/actions/sort-alphabetical-ascending.svg
@@ -221,6 +229,7 @@ Files: share/icons/application/scalable/actions/application-exit.svg
        share/icons/application/scalable/actions/username-copy.svg
        share/icons/application/scalable/actions/view-history.svg
        share/icons/application/scalable/actions/web.svg
+       share/icons/application/scalable/actions/yubikey-refresh.svg
        share/icons/application/scalable/apps/internet-web-browser.svg
        share/icons/application/scalable/apps/keepassxc.svg
        share/icons/application/scalable/apps/keepassxc-dark.svg
@@ -235,9 +244,12 @@ Files: share/icons/application/scalable/actions/application-exit.svg
        share/icons/application/scalable/status/dialog-information.svg
        share/icons/application/scalable/status/dialog-warning.svg
        share/icons/application/scalable/status/security-high.svg
-Copyright: 2019 Austin Andrews <http://templarian.com/>
-License: SIL OPEN FONT LICENSE Version 1.1
-Comment: Taken from Material Design icon set (https://github.com/templarian/MaterialDesign/)
+       share/icons/application/scalable/actions/lock-open-alert.svg
+       share/icons/application/scalable/actions/lock-open.svg
+       share/icons/application/scalable/actions/lock.svg
+Copyright: 2023 Pictogrammers <https://pictogrammers.com/docs/general/about/>
+License: Apache-2.0
+Comment: Some icons are modified to fit KeePassXC design (https://pictogrammers.com/library/mdi/)
 
 Files: src/streams/qtiocompressor.*
        src/streams/QtIOCompressor
@@ -245,7 +257,7 @@ Files: src/streams/qtiocompressor.*
 Copyright: 2009-2012, Nokia Corporation and/or its subsidiary(-ies)
 License: LGPL-2.1 or GPL-3
 
-Files: src/zxcvbn/zxcvbn.*
+Files: src/thirdparty/zxcvbn/zxcvbn.*
 Copyright: 2015-2017, Tony Evans
 License: MIT
 

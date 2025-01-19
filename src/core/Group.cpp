@@ -223,18 +223,16 @@ Entry* Group::lastTopVisibleEntry() const
 bool Group::isRecycled() const
 {
     auto group = this;
-    if (!group->database()) {
-        return false;
-    }
-
-    do {
-        if (group->m_parent && group->m_db->metadata()) {
-            if (group->m_parent == group->m_db->metadata()->recycleBin()) {
+    auto db = group->database();
+    if (db) {
+        auto recycleBin = db->metadata()->recycleBin();
+        do {
+            if (group == recycleBin) {
                 return true;
             }
-        }
-        group = group->m_parent;
-    } while (group && group->m_parent && group->m_parent != group->m_db->rootGroup());
+            group = group->m_parent;
+        } while (group);
+    }
 
     return false;
 }
@@ -247,6 +245,20 @@ bool Group::isExpired() const
 bool Group::isEmpty() const
 {
     return !hasChildren() && m_entries.isEmpty();
+}
+
+// TODO: Refactor this when KeeShare is refactored
+bool Group::isShared() const
+{
+    auto group = this;
+    do {
+        if (group->customData()->contains("KeeShare/Reference")) {
+            return true;
+        }
+        group = group->m_parent;
+    } while (group);
+
+    return false;
 }
 
 CustomData* Group::customData()
@@ -286,6 +298,21 @@ void Group::setCustomDataTriState(const QString& key, const Group::TriState& val
         m_customData->remove(key);
         break;
     }
+}
+
+// Note that this returns an empty string both if the key is missing *or* if the key is present but value is empty.
+QString Group::resolveCustomDataString(const QString& key, bool checkParent) const
+{
+    // If not defined, check our parent up to the root group
+    if (!m_customData->contains(key)) {
+        if (!m_parent || !checkParent) {
+            return QString();
+        } else {
+            return m_parent->resolveCustomDataString(key);
+        }
+    }
+
+    return m_customData->value(key);
 }
 
 bool Group::equals(const Group* other, CompareItemOptions options) const

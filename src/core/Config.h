@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2020 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2011 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 
 #include <QPointer>
 #include <QVariant>
+#include <QVector>
 
 class QSettings;
 
@@ -48,6 +49,7 @@ public:
         UseDirectWriteSaves,
         SearchLimitGroup,
         MinimizeOnOpenUrl,
+        OpenURLOnDoubleClick,
         HideWindowOnCopy,
         MinimizeOnCopy,
         MinimizeAfterUnlock,
@@ -58,6 +60,8 @@ public:
         AutoTypeDelay,
         AutoTypeStartDelay,
         AutoTypeHideExpiredEntry,
+        AutoTypeDialogSortColumn,
+        AutoTypeDialogSortOrder,
         GlobalAutoTypeKey,
         GlobalAutoTypeModifiers,
         GlobalAutoTypeRetypeTime,
@@ -73,11 +77,14 @@ public:
         LastDir,
 
         GUI_Language,
+        GUI_HideMenubar,
         GUI_HideToolbar,
         GUI_MovableToolbar,
+        GUI_HideGroupPanel,
         GUI_HidePreviewPanel,
         GUI_AlwaysOnTop,
         GUI_ToolButtonStyle,
+        GUI_LaunchAtStartup,
         GUI_ShowTrayIcon,
         GUI_TrayIconAppearance,
         GUI_MinimizeToTray,
@@ -113,8 +120,8 @@ public:
         Security_LockDatabaseIdleSeconds,
         Security_LockDatabaseMinimize,
         Security_LockDatabaseScreenLock,
+        Security_LockDatabaseOnUserSwitch,
         Security_RelockAutoType,
-        Security_PasswordsRepeatVisible,
         Security_PasswordsHidden,
         Security_PasswordEmptyPlaceholder,
         Security_HidePasswordPreviewPanel,
@@ -124,6 +131,7 @@ public:
         Security_NoConfirmMoveEntryToRecycleBin,
         Security_EnableCopyOnDoubleClick,
         Security_QuickUnlock,
+        Security_DatabasePasswordMinimumQuality,
 
         Browser_Enabled,
         Browser_ShowNotification,
@@ -145,6 +153,7 @@ public:
         Browser_UseCustomBrowser,
         Browser_CustomBrowserType,
         Browser_CustomBrowserLocation,
+        Browser_AllowLocalhostWithPasskeys,
 #ifdef QT_DEBUG
         Browser_CustomExtensionId,
 #endif
@@ -190,11 +199,16 @@ public:
         PasswordGenerator_Type,
 
         Messages_NoLegacyKeyFileWarning,
-        Messages_Qt55CompatibilityWarning,
         Messages_HidePreReleaseWarning,
 
         // Special internal value
         Deleted
+    };
+
+    struct ShortcutEntry
+    {
+        QString name;
+        QString shortcut;
     };
 
     ~Config() override;
@@ -207,9 +221,17 @@ public:
     void sync();
     void resetToDefaults();
 
+    bool importSettings(const QString& fileName);
+    void exportSettings(const QString& fileName) const;
+
+    QList<ShortcutEntry> getShortcuts() const;
+    void setShortcuts(const QList<ShortcutEntry>& shortcuts);
+
     static Config* instance();
     static void createConfigFromFile(const QString& configFileName, const QString& localConfigFileName = {});
     static void createTempFileInstance();
+    static bool isPortable();
+    static QString portableConfigDir();
 
 signals:
     void changed(ConfigKey key);

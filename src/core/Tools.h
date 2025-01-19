@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <QDateTime>
 #include <QList>
 #include <QProcessEnvironment>
+#include <QSet>
 
 class QIODevice;
 class QRegularExpression;
@@ -37,6 +38,7 @@ namespace Tools
     bool readAllFromDevice(QIODevice* device, QByteArray& data);
     bool isHex(const QByteArray& ba);
     bool isBase64(const QByteArray& ba);
+    bool isAsciiString(const QString& str);
     void sleep(int ms);
     void wait(int ms);
     QString uuidToHex(const QUuid& uuid);
@@ -45,6 +47,15 @@ namespace Tools
     QString envSubstitute(const QString& filepath,
                           QProcessEnvironment environment = QProcessEnvironment::systemEnvironment());
     QString cleanFilename(QString filename);
+
+    template <class T> QSet<T> asSet(const QList<T>& a)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+        return QSet<T>(a.begin(), a.end());
+#else
+        return QSet<T>::fromList(a);
+#endif
+    }
 
     /**
      * Escapes all characters in regex such that they do not receive any special treatment when used
@@ -87,20 +98,6 @@ namespace Tools
         }
     }
 
-    inline int qtRuntimeVersion()
-    {
-        // Cache the result since the Qt version can't change during
-        // the execution, computing it once will be enough
-        const static int version = []() {
-            const auto sq = QString::fromLatin1(qVersion());
-            return (sq.section(QChar::fromLatin1('.'), 0, 0).toInt() << 16)
-                   + (sq.section(QChar::fromLatin1('.'), 1, 1).toInt() << 8)
-                   + (sq.section(QChar::fromLatin1('.'), 2, 2).toInt());
-        }();
-
-        return version;
-    }
-
     // Checks if all values are found inside the list. Returns a list of values not found.
     template <typename T> QList<T> getMissingValuesFromList(const QList<T>& list, const QList<T>& required)
     {
@@ -117,6 +114,15 @@ namespace Tools
     QVariantMap qo2qvm(const QObject* object, const QStringList& ignoredProperties = {"objectName"});
 
     QString substituteBackupFilePath(QString pattern, const QString& databasePath);
+
+    enum class MimeType : uint8_t
+    {
+        Image,
+        PlainText,
+        Unknown
+    };
+
+    MimeType toMimeType(const QString& mimeName);
 } // namespace Tools
 
 #endif // KEEPASSX_TOOLS_H

@@ -20,6 +20,8 @@
 
 #include "KeyComponentWidget.h"
 
+#include "core/PasswordHealth.h"
+
 namespace Ui
 {
     class PasswordEditWidget;
@@ -38,13 +40,13 @@ public:
     void setPasswordVisible(bool visible);
     bool isPasswordVisible() const;
     bool isEmpty() const;
+    PasswordHealth::Quality getPasswordQuality() const;
     bool validate(QString& errorMessage) const override;
 
 protected:
     QWidget* componentEditWidget() override;
     void initComponentEditWidget(QWidget* widget) override;
     void initComponent() override;
-    void hideEvent(QHideEvent* event) override;
 
 private slots:
     void setPassword(const QString& password);

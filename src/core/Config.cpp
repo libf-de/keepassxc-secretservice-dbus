@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2020 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2011 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -66,6 +66,7 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::UseDirectWriteSaves,{QS("UseDirectWriteSaves"), Local, false}},
     {Config::SearchLimitGroup,{QS("SearchLimitGroup"), Roaming, false}},
     {Config::MinimizeOnOpenUrl,{QS("MinimizeOnOpenUrl"), Roaming, false}},
+    {Config::OpenURLOnDoubleClick, {QS("OpenURLOnDoubleClick"), Roaming, true}},
     {Config::HideWindowOnCopy,{QS("HideWindowOnCopy"), Roaming, false}},
     {Config::MinimizeOnCopy,{QS("MinimizeOnCopy"), Roaming, true}},
     {Config::MinimizeAfterUnlock,{QS("MinimizeAfterUnlock"), Roaming, false}},
@@ -76,6 +77,8 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::AutoTypeDelay,{QS("AutoTypeDelay"), Roaming, 25}},
     {Config::AutoTypeStartDelay,{QS("AutoTypeStartDelay"), Roaming, 500}},
     {Config::AutoTypeHideExpiredEntry,{QS("AutoTypeHideExpiredEntry"), Roaming, false}},
+    {Config::AutoTypeDialogSortColumn,{QS("AutoTypeDialogSortColumn"), Roaming, 0}},
+    {Config::AutoTypeDialogSortOrder,{QS("AutoTypeDialogSortOrder"), Roaming, Qt::AscendingOrder}},
     {Config::GlobalAutoTypeKey,{QS("GlobalAutoTypeKey"), Roaming, 0}},
     {Config::GlobalAutoTypeModifiers,{QS("GlobalAutoTypeModifiers"), Roaming, 0}},
     {Config::GlobalAutoTypeRetypeTime,{QS("GlobalAutoTypeRetypeTime"), Roaming, 15}},
@@ -92,11 +95,14 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
 
     // GUI
     {Config::GUI_Language, {QS("GUI/Language"), Roaming, QS("system")}},
+    {Config::GUI_HideMenubar, {QS("GUI/HideMenubar"), Roaming, false}},
     {Config::GUI_HideToolbar, {QS("GUI/HideToolbar"), Roaming, false}},
     {Config::GUI_MovableToolbar, {QS("GUI/MovableToolbar"), Roaming, false}},
+    {Config::GUI_HideGroupPanel, {QS("GUI/HideGroupPanel"), Roaming, false}},
     {Config::GUI_HidePreviewPanel, {QS("GUI/HidePreviewPanel"), Roaming, false}},
     {Config::GUI_AlwaysOnTop, {QS("GUI/GUI_AlwaysOnTop"), Local, false}},
     {Config::GUI_ToolButtonStyle, {QS("GUI/ToolButtonStyle"), Roaming, Qt::ToolButtonIconOnly}},
+    {Config::GUI_LaunchAtStartup, {QS("GUI/LaunchAtStartup"), Roaming, false}},
     {Config::GUI_ShowTrayIcon, {QS("GUI/ShowTrayIcon"), Roaming, false}},
     {Config::GUI_TrayIconAppearance, {QS("GUI/TrayIconAppearance"), Roaming, {}}},
     {Config::GUI_MinimizeToTray, {QS("GUI/MinimizeToTray"), Roaming, false}},
@@ -133,8 +139,8 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::Security_LockDatabaseIdleSeconds, {QS("Security/LockDatabaseIdleSeconds"), Roaming, 240}},
     {Config::Security_LockDatabaseMinimize, {QS("Security/LockDatabaseMinimize"), Roaming, false}},
     {Config::Security_LockDatabaseScreenLock, {QS("Security/LockDatabaseScreenLock"), Roaming, true}},
+    {Config::Security_LockDatabaseOnUserSwitch, {QS("Security/LockDatabaseOnUserSwitch"), Roaming, true}},
     {Config::Security_RelockAutoType, {QS("Security/RelockAutoType"), Roaming, false}},
-    {Config::Security_PasswordsRepeatVisible, {QS("Security/PasswordsRepeatVisible"), Roaming, true}},
     {Config::Security_PasswordsHidden, {QS("Security/PasswordsHidden"), Roaming, true}},
     {Config::Security_PasswordEmptyPlaceholder, {QS("Security/PasswordEmptyPlaceholder"), Roaming, false}},
     {Config::Security_HidePasswordPreviewPanel, {QS("Security/HidePasswordPreviewPanel"), Roaming, true}},
@@ -144,6 +150,7 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::Security_NoConfirmMoveEntryToRecycleBin,{QS("Security/NoConfirmMoveEntryToRecycleBin"), Roaming, true}},
     {Config::Security_EnableCopyOnDoubleClick,{QS("Security/EnableCopyOnDoubleClick"), Roaming, false}},
     {Config::Security_QuickUnlock, {QS("Security/QuickUnlock"), Local, true}},
+    {Config::Security_DatabasePasswordMinimumQuality, {QS("Security/DatabasePasswordMinimumQuality"), Local, 0}},
 
     // Browser
     {Config::Browser_Enabled, {QS("Browser/Enabled"), Roaming, false}},
@@ -166,6 +173,7 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::Browser_UseCustomBrowser, {QS("Browser/UseCustomBrowser"), Local, false}},
     {Config::Browser_CustomBrowserType, {QS("Browser/CustomBrowserType"), Local, -1}},
     {Config::Browser_CustomBrowserLocation, {QS("Browser/CustomBrowserLocation"), Local, {}}},
+    {Config::Browser_AllowLocalhostWithPasskeys, {QS("Browser/Browser_AllowLocalhostWithPasskeys"), Roaming, false}},
 #ifdef QT_DEBUG
     {Config::Browser_CustomExtensionId, {QS("Browser/CustomExtensionId"), Local, {}}},
 #endif
@@ -216,7 +224,6 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
 
     // Messages
     {Config::Messages_NoLegacyKeyFileWarning, {QS("Messages/NoLegacyKeyFileWarning"), Roaming, false}},
-    {Config::Messages_Qt55CompatibilityWarning, {QS("Messages/Qt55CompatibilityWarning"), Local, false}},
     {Config::Messages_HidePreReleaseWarning, {QS("Messages/HidePreReleaseWarning"), Local, {}}}};
 
 // clang-format on
@@ -299,6 +306,45 @@ void Config::resetToDefaults()
     }
 }
 
+bool Config::importSettings(const QString& fileName)
+{
+    // Ensure file is valid ini with values
+    QSettings settings(fileName, QSettings::IniFormat);
+    if (settings.status() != QSettings::NoError || settings.allKeys().isEmpty()) {
+        return false;
+    }
+
+    // Only import valid roaming settings
+    auto isValidSetting = [](const QString& key) {
+        for (const auto& value : configStrings.values()) {
+            if (value.type == ConfigType::Roaming && value.name == key) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Clear existing settings and set valid items
+    m_settings->clear();
+    for (const auto& key : settings.allKeys()) {
+        if (isValidSetting(key)) {
+            m_settings->setValue(key, settings.value(key));
+        }
+    }
+
+    sync();
+
+    return true;
+}
+
+void Config::exportSettings(const QString& fileName) const
+{
+    QSettings settings(fileName, QSettings::IniFormat);
+    for (const auto& key : m_settings->allKeys()) {
+        settings.setValue(key, m_settings->value(key));
+    }
+}
+
 /**
  * Map of configuration file settings that are either deprecated, or have
  * had their name changed to their new config enum values.
@@ -327,7 +373,7 @@ static const QHash<QString, Config::ConfigKey> deprecationMap = {
     {QS("security/passwordscleartext"), Config::Security_PasswordsHidden},
     {QS("security/passwordemptynodots"), Config::Security_PasswordEmptyPlaceholder},
     {QS("security/HidePasswordPreviewPanel"), Config::Security_HidePasswordPreviewPanel},
-    {QS("security/passwordsrepeat"), Config::Security_PasswordsRepeatVisible},
+    {QS("security/passwordsrepeat"), Config::Deleted},
     {QS("security/hidenotes"), Config::Security_HideNotes},
     {QS("KeeShare/Settings.own"), Config::KeeShare_Own},
     {QS("KeeShare/Settings.foreign"), Config::KeeShare_Foreign},
@@ -357,7 +403,7 @@ static const QHash<QString, Config::ConfigKey> deprecationMap = {
     {QS("generator/WordList"), Config::PasswordGenerator_WordList},
     {QS("generator/WordCase"), Config::PasswordGenerator_WordCase},
     {QS("generator/Type"), Config::PasswordGenerator_Type},
-    {QS("QtErrorMessageShown"), Config::Messages_Qt55CompatibilityWarning},
+    {QS("QtErrorMessageShown"), Config::Deleted},
     {QS("GUI/HidePasswords"), Config::Deleted},
     {QS("GUI/DarkTrayIcon"), Config::Deleted},
 
@@ -373,7 +419,8 @@ static const QHash<QString, Config::ConfigKey> deprecationMap = {
     {QS("Security/ResetTouchIdScreenlock"), Config::Deleted},
 
     // 2.8.0
-    {QS("GUI/AdvancedSettings"), Config::Deleted}};
+    {QS("GUI/AdvancedSettings"), Config::Deleted},
+    {QS("Security/PasswordsRepeatVisible"), Config::Deleted}};
 
 /**
  * Migrate settings from previous versions.
@@ -506,20 +553,8 @@ void Config::init(const QString& configFileName, const QString& localConfigFileN
 QPair<QString, QString> Config::defaultConfigFiles()
 {
     // Check if we are running in portable mode, if so store the config files local to the app
-#ifdef Q_OS_WIN
-    // Enable QFileInfo::isWritable check on Windows
-    extern Q_CORE_EXPORT int qt_ntfs_permission_lookup;
-    qt_ntfs_permission_lookup++;
-#endif
-    auto portablePath = QCoreApplication::applicationDirPath().append("/%1");
-    auto portableFile = portablePath.arg(".portable");
-    bool isPortable = QFile::exists(portableFile) && QFileInfo(portableFile).isWritable();
-#ifdef Q_OS_WIN
-    qt_ntfs_permission_lookup--;
-#endif
-
-    if (isPortable) {
-        return {portablePath.arg("config/keepassxc.ini"), portablePath.arg("config/keepassxc_local.ini")};
+    if (isPortable()) {
+        return {portableConfigDir().append("/keepassxc.ini"), portableConfigDir().append("/keepassxc_local.ini")};
     }
 
     QString configPath;
@@ -594,6 +629,51 @@ void Config::createTempFileInstance()
     Q_UNUSED(openResult);
     m_instance = new Config(tmpFile->fileName(), "", qApp);
     tmpFile->setParent(m_instance);
+}
+
+bool Config::isPortable()
+{
+#ifdef Q_OS_WIN
+    // Enable QFileInfo::isWritable check on Windows
+    extern Q_CORE_EXPORT int qt_ntfs_permission_lookup;
+    qt_ntfs_permission_lookup++;
+#endif
+    auto portablePath = QCoreApplication::applicationDirPath().append("/%1");
+    auto portableFile = portablePath.arg(".portable");
+    auto isPortable = QFile::exists(portableFile) && QFileInfo(portableFile).isWritable();
+#ifdef Q_OS_WIN
+    qt_ntfs_permission_lookup--;
+#endif
+    return isPortable;
+}
+
+QString Config::portableConfigDir()
+{
+    return QCoreApplication::applicationDirPath().append("/config");
+}
+
+QList<Config::ShortcutEntry> Config::getShortcuts() const
+{
+    m_settings->beginGroup("Shortcuts");
+    const auto keys = m_settings->childKeys();
+    QList<ShortcutEntry> ret;
+    ret.reserve(keys.size());
+    for (const auto& key : keys) {
+        const auto shortcut = m_settings->value(key).toString();
+        ret.push_back(ShortcutEntry{key, shortcut});
+    }
+    m_settings->endGroup();
+    return ret;
+}
+
+void Config::setShortcuts(const QList<ShortcutEntry>& shortcuts)
+{
+    m_settings->beginGroup("Shortcuts");
+    m_settings->remove(""); // clear previous
+    for (const auto& shortcutEntry : shortcuts) {
+        m_settings->setValue(shortcutEntry.name, shortcutEntry.shortcut);
+    }
+    m_settings->endGroup();
 }
 
 #undef QS

@@ -19,8 +19,8 @@
 #include "ui_TotpSetupDialog.h"
 
 #include "core/Base32.h"
+#include "core/Totp.h"
 #include "gui/MessageBox.h"
-#include "totp/totp.h"
 
 TotpSetupDialog::TotpSetupDialog(QWidget* parent, Entry* entry)
     : QDialog(parent)
@@ -119,7 +119,7 @@ void TotpSetupDialog::init()
 
         if (settings->encoder.shortName == Totp::STEAM_SHORTNAME) {
             m_ui->radioSteam->setChecked(true);
-        } else if (settings->custom) {
+        } else if (Totp::hasCustomSettings(settings)) {
             m_ui->radioCustom->setChecked(true);
             m_ui->digitsSpinBox->setValue(settings->digits);
             int index = m_ui->algorithmComboBox->findData(settings->algorithm);

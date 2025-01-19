@@ -49,7 +49,8 @@ public:
         Totp = 12,
         Size = 13,
         PasswordStrength = 14,
-        Color = 15
+        Color = 15,
+        ParentGroupPath = 16
     };
 
     explicit EntryModel(QObject* parent = nullptr);
@@ -94,7 +95,6 @@ private:
     QSet<const Group*> m_allGroups;
 
     const QString HiddenContentDisplay;
-    const Qt::DateFormat DateFormat;
 };
 
 #endif // KEEPASSX_ENTRYMODEL_H

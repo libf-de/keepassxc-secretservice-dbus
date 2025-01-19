@@ -57,6 +57,7 @@ PasswordGeneratorWidget::PasswordGeneratorWidget(QWidget* parent)
 
     connect(m_ui->editNewPassword, SIGNAL(textChanged(QString)), SLOT(updateButtonsEnabled(QString)));
     connect(m_ui->editNewPassword, SIGNAL(textChanged(QString)), SLOT(updatePasswordStrength()));
+    connect(m_ui->editNewPassword, SIGNAL(textChanged(QString)), SLOT(updatePasswordLengthLabel(QString)));
     connect(m_ui->buttonAdvancedMode, SIGNAL(toggled(bool)), SLOT(setAdvancedMode(bool)));
     connect(m_ui->buttonAddHex, SIGNAL(clicked()), SLOT(excludeHexChars()));
     connect(m_ui->editAdditionalChars, SIGNAL(textChanged(QString)), SLOT(updateGenerator()));
@@ -80,7 +81,7 @@ PasswordGeneratorWidget::PasswordGeneratorWidget(QWidget* parent)
     connect(m_ui->tabWidget, SIGNAL(currentChanged(int)), SLOT(updateGenerator()));
     connect(m_ui->wordCaseComboBox, SIGNAL(currentIndexChanged(int)), SLOT(updateGenerator()));
 
-    // set font size of password quality and entropy labels dynamically to 80% of
+    // set font size of password quality, characters, and entropy labels dynamically to 80% of
     // the default font size, but make it no smaller than 8pt
     QFont defaultFont;
     auto smallerSize = static_cast<int>(defaultFont.pointSize() * 0.8f);
@@ -88,6 +89,7 @@ PasswordGeneratorWidget::PasswordGeneratorWidget(QWidget* parent)
         defaultFont.setPointSize(smallerSize);
         m_ui->entropyLabel->setFont(defaultFont);
         m_ui->strengthLabel->setFont(defaultFont);
+        m_ui->passwordLengthLabel->setFont(defaultFont);
     }
 
     // set default separator to Space
@@ -97,6 +99,7 @@ PasswordGeneratorWidget::PasswordGeneratorWidget(QWidget* parent)
     m_ui->wordCaseComboBox->addItem(tr("lower case"), PassphraseGenerator::LOWERCASE);
     m_ui->wordCaseComboBox->addItem(tr("UPPER CASE"), PassphraseGenerator::UPPERCASE);
     m_ui->wordCaseComboBox->addItem(tr("Title Case"), PassphraseGenerator::TITLECASE);
+    m_ui->wordCaseComboBox->addItem(tr("MIXED case"), PassphraseGenerator::MIXEDCASE);
 
     // load system-wide wordlists
     QDir path(resources()->wordlistPath(""));
@@ -274,7 +277,6 @@ void PasswordGeneratorWidget::updatePasswordStrength()
     PasswordHealth passwordHealth(0);
     if (m_ui->tabWidget->currentIndex() == Diceware) {
         passwordHealth.init(m_dicewareGenerator->estimateEntropy());
-        m_ui->charactersInPassphraseLabel->setText(QString::number(m_ui->editNewPassword->text().length()));
     } else {
         passwordHealth = PasswordHealth(m_ui->editNewPassword->text());
     }
@@ -314,6 +316,11 @@ void PasswordGeneratorWidget::updatePasswordStrength()
         m_ui->strengthLabel->setText(tr("Password Quality: %1").arg(tr("Excellent", "Password quality")));
         break;
     }
+}
+
+void PasswordGeneratorWidget::updatePasswordLengthLabel(const QString& password)
+{
+    m_ui->passwordLengthLabel->setText(tr("Characters: %1").arg(QString::number(password.length())));
 }
 
 void PasswordGeneratorWidget::applyPassword()

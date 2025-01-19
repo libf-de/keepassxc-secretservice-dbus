@@ -45,7 +45,7 @@ set(cli_SOURCES
         Show.cpp)
 
 add_library(cli STATIC ${cli_SOURCES})
-target_link_libraries(cli Qt5::Core)
+target_link_libraries(cli ${ZXCVBN_LIBRARIES} Qt5::Core)
 
 find_package(Readline)
 
@@ -58,7 +58,7 @@ add_executable(keepassxc-cli keepassxc-cli.cpp)
 target_link_libraries(keepassxc-cli
         ${GPGERROR_LIBRARIES}
         cli
-        keepassx_core)
+        keepassxc_core)
 
 install(TARGETS keepassxc-cli
         BUNDLE DESTINATION . COMPONENT Runtime

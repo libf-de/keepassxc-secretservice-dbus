@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ * Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "DatabaseOpenDialog.h"
 #include "config-keepassx.h"
 #include "gui/MessageWidget.h"
+#include "wizard/ImportWizard.h"
 
 #include <QTabWidget>
 #include <QTimer>
@@ -64,9 +65,7 @@ public slots:
     DatabaseWidget* newDatabase();
     void openDatabase();
     void mergeDatabase();
-    void importCsv();
-    void importKeePass1Database();
-    void importOpVaultDatabase();
+    void importFile();
     bool saveDatabase(int index = -1);
     bool saveDatabaseAs(int index = -1);
     bool saveDatabaseBackup(int index = -1);
@@ -76,19 +75,22 @@ public slots:
 
     bool lockDatabases();
     void lockDatabasesDelayed();
+    void lockDatabasesOnUserSwitch();
     void closeDatabaseFromSender();
     void unlockDatabaseInDialog(DatabaseWidget* dbWidget, DatabaseOpenDialog::Intent intent);
     void unlockDatabaseInDialog(DatabaseWidget* dbWidget, DatabaseOpenDialog::Intent intent, const QString& filePath);
+    void unlockDatabaseInDialogForSync(const QString& filePath);
     void unlockAnyDatabaseInDialog(DatabaseOpenDialog::Intent intent);
     void relockPendingDatabase();
 
+    void showDatabaseReports(bool state);
+    void showDatabaseSettings(bool state);
     void showDatabaseSecurity();
-    void showDatabaseReports();
-    void showDatabaseSettings();
 #ifdef WITH_XC_BROWSER_PASSKEYS
     void showPasskeys();
     void importPasskey();
     void importPasskeyToEntry();
+    void removePasskeyFromEntry();
 #endif
     void performGlobalAutoType(const QString& search);
     void performBrowserUnlock();
@@ -115,13 +117,14 @@ private slots:
 
 private:
     QSharedPointer<Database> execNewDatabaseWizard();
-    void updateLastDatabases(const QString& filename);
+    void updateLastDatabases(const QSharedPointer<Database>& database);
     bool warnOnExport();
     void displayUnlockDialog();
 
     QPointer<DatabaseWidgetStateSync> m_dbWidgetStateSync;
     QPointer<DatabaseWidget> m_dbWidgetPendingLock;
     QPointer<DatabaseOpenDialog> m_databaseOpenDialog;
+    QPointer<ImportWizard> m_importWizard;
     QTimer m_lockDelayTimer;
     bool m_databaseOpenInProgress;
 };

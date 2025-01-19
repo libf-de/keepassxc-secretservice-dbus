@@ -33,6 +33,7 @@ GroupView::GroupView(Database* db, QWidget* parent)
     QTreeView::setModel(m_model);
     setHeaderHidden(true);
     setUniformRowHeights(true);
+    setTextElideMode(Qt::ElideNone);
 
     // clang-format off
     connect(this, SIGNAL(expanded(QModelIndex)), SLOT(expandedChanged(QModelIndex)));
@@ -44,12 +45,15 @@ GroupView::GroupView(Database* db, QWidget* parent)
     // clang-format on
 
     new QShortcut(Qt::CTRL + Qt::Key_F10, this, SLOT(contextMenuShortcutPressed()), nullptr, Qt::WidgetShortcut);
+    new QShortcut(
+        Qt::CTRL + Qt::SHIFT + Qt::Key_PageUp, this, SLOT(selectPreviousGroup()), nullptr, Qt::WindowShortcut);
+    new QShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_PageDown, this, SLOT(selectNextGroup()), nullptr, Qt::WindowShortcut);
 
     // keyboard shortcuts to sort children of a group
-    auto shortcut = new QShortcut(Qt::CTRL + Qt::Key_Down, this);
+    auto shortcut = new QShortcut(Qt::CTRL + Qt::Key_Down, this, nullptr, nullptr, Qt::WidgetShortcut);
     connect(shortcut, &QShortcut::activated, this, [this]() { sortGroups(false); });
 
-    shortcut = new QShortcut(Qt::CTRL + Qt::Key_Up, this);
+    shortcut = new QShortcut(Qt::CTRL + Qt::Key_Up, this, nullptr, nullptr, Qt::WidgetShortcut);
     connect(shortcut, &QShortcut::activated, this, [this]() { sortGroups(true); });
 
     modelReset();
@@ -58,6 +62,24 @@ GroupView::GroupView(Database* db, QWidget* parent)
     viewport()->setAcceptDrops(true);
     setDropIndicatorShown(true);
     setDefaultDropAction(Qt::MoveAction);
+}
+
+void GroupView::selectPreviousGroup()
+{
+    auto previousIndex = indexAbove(currentIndex());
+    if (previousIndex.isValid()) {
+        auto previousGroup = m_model->groupFromIndex(previousIndex);
+        setCurrentGroup(previousGroup);
+    }
+}
+
+void GroupView::selectNextGroup()
+{
+    auto nextIndex = indexBelow(currentIndex());
+    if (nextIndex.isValid()) {
+        auto nextGroup = m_model->groupFromIndex(nextIndex);
+        setCurrentGroup(nextGroup);
+    }
 }
 
 void GroupView::contextMenuShortcutPressed()
@@ -71,6 +93,7 @@ void GroupView::contextMenuShortcutPressed()
 void GroupView::changeDatabase(const QSharedPointer<Database>& newDb)
 {
     m_model->changeDatabase(newDb.data());
+    setColumnWidth(0, sizeHintForColumn(0));
 }
 
 void GroupView::dragMoveEvent(QDragMoveEvent* event)
@@ -113,6 +136,7 @@ void GroupView::expandedChanged(const QModelIndex& index)
 
     Group* group = m_model->groupFromIndex(index);
     group->setExpanded(isExpanded(index));
+    setColumnWidth(0, sizeHintForColumn(0));
 }
 
 void GroupView::recInitExpanded(Group* group)

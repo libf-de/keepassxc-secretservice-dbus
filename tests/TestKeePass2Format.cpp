@@ -576,11 +576,15 @@ void TestKeePass2Format::testKdbxKeyChange()
     buffer.seek(0);
     QSharedPointer<Database> db(new Database());
     db->changeKdf(fastKdf(KeePass2::uuidToKdf(m_kdbxSourceDb->kdf()->uuid())));
-    db->setRootGroup(m_kdbxSourceDb->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    auto oldGroup =
+        db->setRootGroup(m_kdbxSourceDb->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    delete oldGroup;
 
     db->setKey(key1);
     writeKdbx(&buffer, db.data(), hasError, errorString);
-    QVERIFY(!hasError);
+    if (hasError) {
+        QFAIL(qPrintable(QStringLiteral("Error while reading database: ").append(errorString)));
+    }
 
     // read database
     db = QSharedPointer<Database>::create();
@@ -597,7 +601,9 @@ void TestKeePass2Format::testKdbxKeyChange()
     // write database
     buffer.seek(0);
     writeKdbx(&buffer, db.data(), hasError, errorString);
-    QVERIFY(!hasError);
+    if (hasError) {
+        QFAIL(qPrintable(QStringLiteral("Error while reading database: ").append(errorString)));
+    }
 
     // read database
     db = QSharedPointer<Database>::create();

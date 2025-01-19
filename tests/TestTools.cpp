@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ void TestTools::testHumanReadableFileSize()
     constexpr auto kibibyte = 1024u;
     using namespace Tools;
 
-    QCOMPARE(createDecimal("1", "00", "B"), humanReadableFileSize(1));
+    QCOMPARE(QString("1 B"), humanReadableFileSize(1));
     QCOMPARE(createDecimal("1", "00", "KiB"), humanReadableFileSize(kibibyte));
     QCOMPARE(createDecimal("1", "00", "MiB"), humanReadableFileSize(kibibyte * kibibyte));
     QCOMPARE(createDecimal("1", "00", "GiB"), humanReadableFileSize(kibibyte * kibibyte * kibibyte));
@@ -66,6 +66,14 @@ void TestTools::testIsBase64()
     QVERIFY(!Tools::isBase64(QByteArray("abcd123==")));
     QVERIFY(!Tools::isBase64(QByteArray("abc_")));
     QVERIFY(!Tools::isBase64(QByteArray("123")));
+}
+
+void TestTools::testIsAsciiString()
+{
+    QVERIFY(Tools::isAsciiString("abcd9876DEFGhijkMNO"));
+    QVERIFY(Tools::isAsciiString("-!&5a?`~"));
+    QVERIFY(!Tools::isAsciiString("Štest"));
+    QVERIFY(!Tools::isAsciiString("Ãß"));
 }
 
 void TestTools::testEnvSubstitute()
@@ -142,18 +150,22 @@ void TestTools::testBackupFilePatternSubstitution_data()
     QTest::newRow("Default time pattern (empty formatter)")
         << "{TIME:}" << DEFAULT_DB_FILE_PATH << DEFAULT_FORMATTED_TIME;
     QTest::newRow("Custom time pattern") << "{TIME:dd-ss}" << DEFAULT_DB_FILE_PATH << NOW.toString("dd-ss");
+    QTest::newRow("Time pattern twice") << "{TIME:yy} {TIME}" << DEFAULT_DB_FILE_PATH
+                                        << NOW.toString("yy") + QStringLiteral(" ") + DEFAULT_FORMATTED_TIME;
+    QTest::newRow("Complex custom time pattern")
+        << "./{TIME:yy}/{DB_FILENAME}_{TIME:yyyyMMdd_HHmmss}.old.kdbx" << DEFAULT_DB_FILE_PATH
+        << QStringLiteral("./") + NOW.toString("yy") + QStringLiteral("/") + DEFAULT_DB_FILE_NAME + QStringLiteral("_")
+               + NOW.toString("yyyyMMdd_HHmmss") + QStringLiteral(".old.kdbx");
     QTest::newRow("Invalid custom time pattern") << "{TIME:dd/-ss}" << DEFAULT_DB_FILE_PATH << NOW.toString("dd/-ss");
     QTest::newRow("Recursive substitution") << "{TIME:'{TIME}'}" << DEFAULT_DB_FILE_PATH << DEFAULT_FORMATTED_TIME;
     QTest::newRow("{DB_FILENAME} substitution")
         << "some {DB_FILENAME} thing" << DEFAULT_DB_FILE_PATH
         << QStringLiteral("some ") + DEFAULT_DB_FILE_NAME + QStringLiteral(" thing");
-    QTest::newRow("{DB_FILENAME} substitution with multiple extensions") << "some {DB_FILENAME} thing"
-                                                                         << "/tmp/KeePassXC.kdbx.ext"
-                                                                         << "some KeePassXC.kdbx thing";
+    QTest::newRow("{DB_FILENAME} substitution with multiple extensions")
+        << "some {DB_FILENAME} thing" << "/tmp/KeePassXC.kdbx.ext" << "some KeePassXC.kdbx thing";
     // Not relevant right now, added test anyway
-    QTest::newRow("There should be no substitution loops") << "{DB_FILENAME}"
-                                                           << "{TIME:'{DB_FILENAME}'}.ext"
-                                                           << "{DB_FILENAME}";
+    QTest::newRow("There should be no substitution loops")
+        << "{DB_FILENAME}" << "{TIME:'{DB_FILENAME}'}.ext" << "{TIME:'{DB_FILENAME}'}";
 }
 
 void TestTools::testBackupFilePatternSubstitution()
@@ -179,8 +191,8 @@ void TestTools::testEscapeRegex_data()
     }
 
     QTest::newRow("Regular characters should not be escaped") << all_regular_characters << all_regular_characters;
-    QTest::newRow("Special characters should be escaped") << R"(.^$*+-?()[]{}|\)"
-                                                          << R"(\.\^\$\*\+\-\?\(\)\[\]\{\}\|\\)";
+    QTest::newRow("Special characters should be escaped")
+        << R"(.^$*+-?()[]{}|\)" << R"(\.\^\$\*\+\-\?\(\)\[\]\{\}\|\\)";
     QTest::newRow("Null character") << QString::fromLatin1("ab\0c", 4) << "ab\\0c";
 }
 
@@ -242,27 +254,88 @@ void TestTools::testConvertToRegex_data()
 
 void TestTools::testArrayContainsValues()
 {
-    const auto values = QStringList() << "first"
-                                      << "second"
-                                      << "third";
+    const auto values = QStringList() << "first" << "second" << "third";
 
     // One missing
-    const auto result1 = Tools::getMissingValuesFromList<QString>(values,
-                                                                  QStringList() << "first"
-                                                                                << "second"
-                                                                                << "none");
+    const auto result1 =
+        Tools::getMissingValuesFromList<QString>(values, QStringList() << "first" << "second" << "none");
     QCOMPARE(result1.length(), 1);
     QCOMPARE(result1.first(), QString("none"));
 
     // All found
-    const auto result2 = Tools::getMissingValuesFromList<QString>(values,
-                                                                  QStringList() << "first"
-                                                                                << "second"
-                                                                                << "third");
+    const auto result2 =
+        Tools::getMissingValuesFromList<QString>(values, QStringList() << "first" << "second" << "third");
     QCOMPARE(result2.length(), 0);
 
     // None are found
     const auto numberValues = QList<int>({1, 2, 3, 4, 5});
     const auto result3 = Tools::getMissingValuesFromList<int>(numberValues, QList<int>({6, 7, 8}));
     QCOMPARE(result3.length(), 3);
+}
+
+void TestTools::testMimeTypes()
+{
+    const QStringList TextMimeTypes = {
+        "text/plain", // Plain text
+        "text/html", // HTML documents
+        "text/css", // CSS stylesheets
+        "text/javascript", // JavaScript files
+        "text/markdown", // Markdown documents
+        "text/xml", // XML documents
+        "text/rtf", // Rich Text Format
+        "text/vcard", // vCard files
+        "text/tab-separated-values", // Tab-separated values
+        "application/json", // JSON data
+        "application/xml", // XML data
+        "application/soap+xml", // SOAP messages
+        "application/x-yaml", // YAML data
+        "application/protobuf", // Protocol Buffers
+    };
+
+    const QStringList ImageMimeTypes = {
+        "image/jpeg", // JPEG images
+        "image/png", // PNG images
+        "image/gif", // GIF images
+        "image/bmp", // BMP images
+        "image/webp", // WEBP images
+        "image/svg+xml" // SVG images
+    };
+
+    const QStringList UnknownMimeTypes = {
+        "audio/mpeg", // MPEG audio files
+        "video/mp4", // MP4 video files
+        "application/pdf", // PDF documents
+        "application/zip", // ZIP archives
+        "application/x-tar", // TAR archives
+        "application/x-rar-compressed", // RAR archives
+        "application/x-7z-compressed", // 7z archives
+        "application/x-shockwave-flash", // Adobe Flash files
+        "application/vnd.ms-excel", // Microsoft Excel files
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // Microsoft Excel (OpenXML) files
+        "application/vnd.ms-powerpoint", // Microsoft PowerPoint files
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation", // Microsoft PowerPoint (OpenXML)
+                                                                                     // files
+        "application/msword", // Microsoft Word files
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // Microsoft Word (OpenXML) files
+        "application/vnd.oasis.opendocument.text", // OpenDocument Text
+        "application/vnd.oasis.opendocument.spreadsheet", // OpenDocument Spreadsheet
+        "application/vnd.oasis.opendocument.presentation", // OpenDocument Presentation
+        "application/x-httpd-php", // PHP files
+        "application/x-perl", // Perl scripts
+        "application/x-python", // Python scripts
+        "application/x-ruby", // Ruby scripts
+        "application/x-shellscript", // Shell scripts
+    };
+
+    for (const auto& mime : TextMimeTypes) {
+        QCOMPARE(Tools::toMimeType(mime), Tools::MimeType::PlainText);
+    }
+
+    for (const auto& mime : ImageMimeTypes) {
+        QCOMPARE(Tools::toMimeType(mime), Tools::MimeType::Image);
+    }
+
+    for (const auto& mime : UnknownMimeTypes) {
+        QCOMPARE(Tools::toMimeType(mime), Tools::MimeType::Unknown);
+    }
 }

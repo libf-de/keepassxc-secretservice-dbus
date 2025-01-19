@@ -231,14 +231,6 @@
       <string>&amp;Recent Databases</string>
      </property>
     </widget>
-    <widget class="QMenu" name="menuImport">
-     <property name="title">
-      <string>&amp;Import</string>
-     </property>
-     <addaction name="actionImportCsv"/>
-     <addaction name="actionImportOpVault"/>
-     <addaction name="actionImportKeePass1"/>
-    </widget>
     <widget class="QMenu" name="menuExport">
      <property name="title">
       <string>&amp;Export</string>
@@ -246,6 +238,12 @@
      <addaction name="actionExportCsv"/>
      <addaction name="actionExportHtml"/>
      <addaction name="actionExportXML"/>
+    </widget>
+    <widget class="QMenu" name="menuRemoteSync">
+     <property name="title">
+      <string>Remote S&amp;ync…</string>
+     </property>
+     <addaction name="separator"/>
     </widget>
     <addaction name="actionDatabaseNew"/>
     <addaction name="actionDatabaseOpen"/>
@@ -258,15 +256,16 @@
     <addaction name="actionLockDatabase"/>
     <addaction name="actionLockAllDatabases"/>
     <addaction name="separator"/>
-    <addaction name="actionReports"/>
     <addaction name="actionDatabaseSettings"/>
     <addaction name="actionDatabaseSecurity"/>
+    <addaction name="actionReports"/>
     <addaction name="separator"/>
     <addaction name="actionPasskeys"/>
     <addaction name="actionImportPasskey"/>
     <addaction name="separator"/>
     <addaction name="actionDatabaseMerge"/>
-    <addaction name="menuImport"/>
+    <addaction name="menuRemoteSync"/>
+    <addaction name="actionImport"/>
     <addaction name="menuExport"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
@@ -294,9 +293,6 @@
      <bool>true</bool>
     </property>
     <widget class="QMenu" name="menuEntryCopyAttribute">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
      <property name="toolTip">
       <string/>
      </property>
@@ -308,9 +304,6 @@
      <addaction name="separator"/>
     </widget>
     <widget class="QMenu" name="menuEntryTotp">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
      <property name="title">
       <string>TOTP</string>
      </property>
@@ -325,8 +318,10 @@
       <string>Tags</string>
      </property>
     </widget>
+    <addaction name="separator"/>
     <addaction name="actionEntryNew"/>
     <addaction name="actionEntryEdit"/>
+    <addaction name="actionEntryExpire"/>
     <addaction name="actionEntryClone"/>
     <addaction name="actionEntryDelete"/>
     <addaction name="separator"/>
@@ -343,6 +338,7 @@
     <addaction name="actionEntryAutoType"/>
     <addaction name="separator"/>
     <addaction name="actionEntryImportPasskey"/>
+    <addaction name="actionEntryRemovePasskey"/>
     <addaction name="separator"/>
     <addaction name="actionEntryOpenUrl"/>
     <addaction name="actionEntryDownloadIcon"/>
@@ -356,16 +352,17 @@
     <property name="title">
      <string>&amp;Groups</string>
     </property>
+    <addaction name="actionGroupEmptyRecycleBin"/>
+    <addaction name="separator"/>
     <addaction name="actionGroupNew"/>
     <addaction name="actionGroupEdit"/>
     <addaction name="actionGroupClone"/>
     <addaction name="actionGroupDelete"/>
-    <addaction name="actionGroupEmptyRecycleBin"/>
-    <addaction name="separator"/>
-    <addaction name="actionGroupDownloadFavicons"/>
     <addaction name="separator"/>
     <addaction name="actionGroupSortAsc"/>
     <addaction name="actionGroupSortDesc"/>
+    <addaction name="separator"/>
+    <addaction name="actionGroupDownloadFavicons"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -391,8 +388,13 @@
     <addaction name="actionCompactMode"/>
     <addaction name="actionAlwaysOnTop"/>
     <addaction name="actionAllowScreenCapture"/>
+    <addaction name="separator"/>
     <addaction name="actionShowPreviewPanel"/>
+    <addaction name="actionShowGroupPanel"/>
+    <addaction name="separator"/>
+    <addaction name="actionShowMenubar"/>
     <addaction name="actionShowToolbar"/>
+    <addaction name="separator"/>
     <addaction name="actionHideUsernames"/>
     <addaction name="actionHidePasswords"/>
    </widget>
@@ -435,6 +437,9 @@
    <addaction name="actionEntryCopyURL"/>
    <addaction name="actionEntryAutoType"/>
    <addaction name="separator"/>
+   <addaction name="actionDatabaseSettings"/>
+   <addaction name="actionReports"/>
+   <addaction name="separator"/>
    <addaction name="actionPasswordGenerator"/>
    <addaction name="actionSettings"/>
    <addaction name="separator"/>
@@ -443,6 +448,12 @@
    <property name="text">
     <string>&amp;Quit</string>
    </property>
+   <property name="toolTip">
+    <string>Quit Application</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Q</string>
+   </property>
    <property name="menuRole">
     <enum>QAction::QuitRole</enum>
    </property>
@@ -450,6 +461,9 @@
   <action name="actionAbout">
    <property name="text">
     <string>&amp;About</string>
+   </property>
+   <property name="toolTip">
+    <string>Open About Dialog</string>
    </property>
    <property name="menuRole">
     <enum>QAction::AboutRole</enum>
@@ -467,21 +481,27 @@
    <property name="text">
     <string>&amp;Open Database…</string>
    </property>
+   <property name="toolTip">
+    <string>Open Database</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+O</string>
+   </property>
   </action>
   <action name="actionDatabaseSave">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Save Database</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+S</string>
+   </property>
   </action>
   <action name="actionDatabaseClose">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Close Database</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+W</string>
    </property>
   </action>
   <action name="actionDatabaseNew">
@@ -489,7 +509,10 @@
     <string>&amp;New Database…</string>
    </property>
    <property name="toolTip">
-    <string>Create a new database</string>
+    <string>Create Database</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+N</string>
    </property>
   </action>
   <action name="actionDatabaseMerge">
@@ -497,152 +520,163 @@
     <string>&amp;Merge From Database…</string>
    </property>
    <property name="toolTip">
-    <string>Merge from another KDBX database</string>
+    <string>Merge From Database</string>
    </property>
   </action>
   <action name="actionEntryNew">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;New Entry…</string>
    </property>
    <property name="toolTip">
-    <string>Add a new entry</string>
+    <string>Create Entry</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+N</string>
    </property>
   </action>
   <action name="actionEntryEdit">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Edit Entry…</string>
    </property>
    <property name="toolTip">
-    <string>View or edit entry</string>
+    <string>Edit Entry</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+E</string>
    </property>
   </action>
-  <action name="actionEntryDelete">
+  <action name="actionEntryExpire">
    <property name="enabled">
     <bool>false</bool>
    </property>
    <property name="text">
+    <string>E&amp;xpire Entry…</string>
+   </property>
+  </action>
+  <action name="actionEntryDelete">
+   <property name="text">
     <string>&amp;Delete Entry…</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete Entry</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Del</string>
    </property>
   </action>
   <action name="actionGroupNew">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;New Group…</string>
    </property>
    <property name="toolTip">
-    <string>Add a new group</string>
+    <string>Create Group</string>
    </property>
   </action>
   <action name="actionGroupEdit">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Edit Group…</string>
    </property>
+   <property name="toolTip">
+    <string>Edit Group</string>
+   </property>
   </action>
   <action name="actionGroupDelete">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Delete Group…</string>
    </property>
+   <property name="toolTip">
+    <string>Delete Group</string>
+   </property>
   </action>
   <action name="actionGroupDownloadFavicons">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Download All &amp;Favicons…</string>
    </property>
+   <property name="toolTip">
+    <string>Download All Favicons</string>
+   </property>
   </action>
   <action name="actionGroupSortAsc">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Sort &amp;A-Z</string>
    </property>
+   <property name="toolTip">
+    <string>Sort Groups A-Z</string>
+   </property>
   </action>
   <action name="actionGroupSortDesc">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Sort &amp;Z-A</string>
    </property>
+   <property name="toolTip">
+    <string>Sort Groups Z-A</string>
+   </property>
   </action>
   <action name="actionDatabaseSaveAs">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Sa&amp;ve Database As…</string>
    </property>
+   <property name="toolTip">
+    <string>Save Database As</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+S</string>
+   </property>
   </action>
   <action name="actionDatabaseSecurity">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Database &amp;Security…</string>
    </property>
+   <property name="toolTip">
+    <string>Show Database Security</string>
+   </property>
   </action>
   <action name="actionReports">
-   <property name="enabled">
-    <bool>false</bool>
+   <property name="checkable">
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>Database &amp;Reports…</string>
    </property>
    <property name="toolTip">
-    <string>Statistics, health check, etc.</string>
+    <string>Show Database Reports</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+R</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
    </property>
   </action>
   <action name="actionDatabaseSettings">
-   <property name="enabled">
-    <bool>false</bool>
+   <property name="checkable">
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>&amp;Database Settings…</string>
    </property>
    <property name="toolTip">
-    <string>Database settings</string>
+    <string>Show Database Settings</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+,</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
    </property>
   </action>
   <action name="actionPasskeys">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Passkeys…</string>
    </property>
    <property name="toolTip">
-    <string>Passkeys</string>
+    <string>Show Passkeys</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
    </property>
   </action>
   <action name="actionImportPasskey">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Import Passkey</string>
    </property>
@@ -654,55 +688,58 @@
    </property>
   </action>
   <action name="actionEntryClone">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Clone Entry…</string>
    </property>
+   <property name="toolTip">
+    <string>Clone Entry</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+D</string>
+   </property>
   </action>
   <action name="actionEntryMoveUp">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Move u&amp;p</string>
    </property>
    <property name="toolTip">
-    <string>Move entry one step up</string>
+    <string>Move Entry Up</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Alt+Up</string>
    </property>
   </action>
   <action name="actionEntryMoveDown">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Move do&amp;wn</string>
    </property>
    <property name="toolTip">
-    <string>Move entry one step down</string>
+    <string>Move Entry Down</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Alt+Down</string>
    </property>
   </action>
   <action name="actionEntryCopyUsername">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Copy &amp;Username</string>
    </property>
    <property name="toolTip">
-    <string>Copy username to clipboard</string>
+    <string>Copy Username</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+B</string>
    </property>
   </action>
   <action name="actionEntryCopyPassword">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Copy &amp;Password</string>
    </property>
    <property name="toolTip">
-    <string>Copy password to clipboard</string>
+    <string>Copy Password</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+C</string>
    </property>
   </action>
   <action name="actionSettings">
@@ -711,6 +748,12 @@
    </property>
    <property name="text">
     <string>&amp;Settings</string>
+   </property>
+   <property name="toolTip">
+    <string>Show Application Settings</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+,</string>
    </property>
    <property name="menuRole">
     <enum>QAction::PreferencesRole</enum>
@@ -723,21 +766,23 @@
    <property name="text">
     <string>&amp;Password Generator</string>
    </property>
+   <property name="toolTip">
+    <string>Show Password Generator</string>
+   </property>
   </action>
   <action name="actionEntryAutoType">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Perform &amp;Auto-Type</string>
    </property>
   </action>
   <action name="actionEntryImportPasskey">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Import Passkey</string>
+   </property>
+  </action>
+  <action name="actionEntryRemovePasskey">
+   <property name="text">
+    <string>Remove Passkey From Entry</string>
    </property>
   </action>
   <action name="actionEntryAutoTypeUsername">
@@ -751,7 +796,7 @@
     <string notr="true">{USERNAME}</string>
    </property>
    <property name="toolTip">
-    <string notr="true">{USERNAME}</string>
+    <string>Perform Auto-Type: {USERNAME}</string>
    </property>
   </action>
   <action name="actionEntryAutoTypeUsernameEnter">
@@ -765,7 +810,7 @@
     <string notr="true">{USERNAME}{ENTER}</string>
    </property>
    <property name="toolTip">
-    <string notr="true">{USERNAME}{ENTER}</string>
+    <string>Perform Auto-Type: {USERNAME}{ENTER}</string>
    </property>
   </action>
   <action name="actionEntryAutoTypePassword">
@@ -779,7 +824,7 @@
     <string notr="true">{PASSWORD}</string>
    </property>
    <property name="toolTip">
-    <string notr="true">{PASSWORD}</string>
+    <string>Perform Auto-Type: {PASSWORD}</string>
    </property>
   </action>
   <action name="actionEntryAutoTypePasswordEnter">
@@ -793,7 +838,7 @@
     <string notr="true">{PASSWORD}{ENTER}</string>
    </property>
    <property name="toolTip">
-    <string notr="true">{PASSWORD}{ENTER}</string>
+    <string>Perform Auto-Type: {PASSWORD}{ENTER}</string>
    </property>
   </action>
   <action name="actionEntryAutoTypeTOTP">
@@ -807,85 +852,85 @@
     <string notr="true">{TOTP}</string>
    </property>
    <property name="toolTip">
-    <string notr="true">{TOTP}</string>
+    <string>Perform Auto-Type: {TOTP}</string>
    </property>
   </action>
   <action name="actionEntryDownloadIcon">
    <property name="text">
     <string>Download &amp;Favicon</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+D</string>
+   </property>
   </action>
   <action name="actionEntryOpenUrl">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Open &amp;URL</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+U</string>
+   </property>
   </action>
   <action name="actionLockDatabase">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Lock Database</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+L</string>
+   </property>
   </action>
   <action name="actionLockAllDatabases">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Lock &amp;All Databases</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+L</string>
+   </property>
   </action>
   <action name="actionEntryCopyTitle">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Title</string>
    </property>
    <property name="toolTip">
-    <string>Copy title to clipboard</string>
+    <string>Copy Title</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+I</string>
    </property>
   </action>
   <action name="actionEntryCopyURL">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Copy &amp;URL</string>
    </property>
    <property name="toolTip">
-    <string>Copy URL to clipboard</string>
+    <string>Copy URL</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+U</string>
    </property>
   </action>
   <action name="actionEntryCopyNotes">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Notes</string>
    </property>
    <property name="toolTip">
-    <string>Copy notes to clipboard</string>
+    <string>Copy Notes</string>
    </property>
   </action>
   <action name="actionExportCsv">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;CSV File…</string>
    </property>
+   <property name="toolTip">
+    <string>Export to CSV</string>
+   </property>
   </action>
   <action name="actionExportHtml">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;HTML File…</string>
+   </property>
+   <property name="toolTip">
+    <string>Export to HTML</string>
    </property>
   </action>
   <action name="actionImportKeePass1">
@@ -893,7 +938,7 @@
     <string>KeePass 1 Database…</string>
    </property>
    <property name="toolTip">
-    <string>Import a KeePass 1 database</string>
+    <string>Import KeePass1 Database</string>
    </property>
   </action>
   <action name="actionImportOpVault">
@@ -901,7 +946,7 @@
     <string>1Password Vault…</string>
    </property>
    <property name="toolTip">
-    <string>Import a 1Password Vault</string>
+    <string>Import 1Password Vault</string>
    </property>
   </action>
   <action name="actionImportCsv">
@@ -909,50 +954,71 @@
     <string>CSV File…</string>
    </property>
    <property name="toolTip">
-    <string>Import a CSV file</string>
+    <string>Import CSV File</string>
    </property>
   </action>
   <action name="actionEntryTotp">
    <property name="text">
     <string>Show TOTP</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+T</string>
+   </property>
   </action>
   <action name="actionEntryTotpQRCode">
    <property name="text">
     <string>Show QR Code</string>
+   </property>
+   <property name="toolTip">
+    <string>Show TOTP QR Code</string>
    </property>
   </action>
   <action name="actionEntrySetupTotp">
    <property name="text">
     <string>Set up TOTP…</string>
    </property>
+   <property name="toolTip">
+    <string>Set up TOTP</string>
+   </property>
   </action>
   <action name="actionEntryCopyTotp">
    <property name="text">
     <string>Copy &amp;TOTP</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+T</string>
    </property>
   </action>
   <action name="actionEntryCopyPasswordTotp">
    <property name="text">
     <string>Copy Password and TOTP</string>
    </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Y</string>
+   </property>
   </action>
   <action name="actionGroupEmptyRecycleBin">
    <property name="text">
     <string>E&amp;mpty recycle bin</string>
    </property>
-   <property name="visible">
-    <bool>false</bool>
+   <property name="toolTip">
+    <string>Empty Recycle Bin</string>
    </property>
   </action>
   <action name="actionDonate">
    <property name="text">
     <string>&amp;Donate</string>
    </property>
+   <property name="toolTip">
+    <string>Open Donation Website</string>
+   </property>
   </action>
   <action name="actionBugReport">
    <property name="text">
     <string>Report a &amp;Bug</string>
+   </property>
+   <property name="toolTip">
+    <string>Open Bug Report</string>
    </property>
   </action>
   <action name="actionGettingStarted">
@@ -968,7 +1034,7 @@
     <string>&amp;Online Help</string>
    </property>
    <property name="toolTip">
-    <string>Go to online documentation</string>
+    <string>Open Online Documentation</string>
    </property>
   </action>
   <action name="actionUserGuide">
@@ -983,26 +1049,41 @@
    <property name="text">
     <string>&amp;Keyboard Shortcuts</string>
    </property>
+   <property name="toolTip">
+    <string>Open Keyboard Shortcuts Guide</string>
+   </property>
    <property name="shortcut">
     <string notr="true">Ctrl+/</string>
    </property>
   </action>
   <action name="actionDatabaseSaveBackup">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Save Database Backup…</string>
+   </property>
+   <property name="toolTip">
+    <string>Save Database Backup</string>
    </property>
   </action>
   <action name="actionEntryAddToAgent">
    <property name="text">
     <string>Add key to SSH Agent</string>
    </property>
+   <property name="toolTip">
+    <string>SSH Agent: Add Key</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+H</string>
+   </property>
   </action>
   <action name="actionEntryRemoveFromAgent">
    <property name="text">
     <string>Remove key from SSH Agent</string>
+   </property>
+   <property name="toolTip">
+    <string>SSH Agent: Remove Key</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+H</string>
    </property>
   </action>
   <action name="actionCompactMode">
@@ -1011,6 +1092,9 @@
    </property>
    <property name="text">
     <string>Compact Mode</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Compact Mode</string>
    </property>
   </action>
   <action name="actionThemeAuto">
@@ -1023,6 +1107,9 @@
    <property name="text">
     <string>Automatic</string>
    </property>
+   <property name="toolTip">
+    <string>Set Theme: Automatic</string>
+   </property>
   </action>
   <action name="actionThemeLight">
    <property name="checkable">
@@ -1030,6 +1117,9 @@
    </property>
    <property name="text">
     <string>Light</string>
+   </property>
+   <property name="toolTip">
+    <string>Set Theme: Light</string>
    </property>
   </action>
   <action name="actionThemeDark">
@@ -1039,6 +1129,9 @@
    <property name="text">
     <string>Dark</string>
    </property>
+   <property name="toolTip">
+    <string>Set Theme: Dark</string>
+   </property>
   </action>
   <action name="actionThemeClassic">
    <property name="checkable">
@@ -1046,6 +1139,23 @@
    </property>
    <property name="text">
     <string>Classic (Platform-native)</string>
+   </property>
+   <property name="toolTip">
+    <string>Set Theme: Classic</string>
+   </property>
+  </action>
+  <action name="actionShowMenubar">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Menubar</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Show Menubar</string>
    </property>
   </action>
   <action name="actionShowToolbar">
@@ -1058,6 +1168,9 @@
    <property name="text">
     <string>Show Toolbar</string>
    </property>
+   <property name="toolTip">
+    <string>Toggle Show Toolbar</string>
+   </property>
   </action>
   <action name="actionShowPreviewPanel">
    <property name="checkable">
@@ -1069,6 +1182,9 @@
    <property name="text">
     <string>Show Preview Panel</string>
    </property>
+   <property name="toolTip">
+    <string>Toggle Show Preview Panel</string>
+   </property>
   </action>
   <action name="actionAlwaysOnTop">
    <property name="checkable">
@@ -1076,6 +1192,9 @@
    </property>
    <property name="text">
     <string>Always on Top</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Always on Top</string>
    </property>
    <property name="shortcut">
     <string notr="true">Ctrl+Shift+A</string>
@@ -1087,6 +1206,9 @@
    </property>
    <property name="text">
     <string>Hide Usernames</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Hide Usernames</string>
    </property>
    <property name="shortcut">
     <string notr="true">Ctrl+Shift+B</string>
@@ -1102,6 +1224,9 @@
    <property name="text">
     <string>Hide Passwords</string>
    </property>
+   <property name="toolTip">
+    <string>Toggle Hide Passwords</string>
+   </property>
    <property name="shortcut">
     <string notr="true">Ctrl+Shift+C</string>
    </property>
@@ -1114,13 +1239,13 @@
     <string notr="true">{USERNAME}{TAB}{PASSWORD}{ENTER}</string>
    </property>
    <property name="toolTip">
-    <string notr="true">{USERNAME}{TAB}{PASSWORD}{ENTER}</string>
+    <string notr="true">Perform Auto-Type: Entry Default</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+V</string>
    </property>
   </action>
   <action name="actionGroupClone">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Clone Group...</string>
    </property>
@@ -1130,29 +1255,23 @@
     <string notr="true" extracomment="Translatable string with plural form set in CPP file">Restore Entry(s)</string>
    </property>
    <property name="toolTip">
-    <string notr="true" extracomment="Translatable string with plural form set in CPP file">Restore Entry(s)</string>
+    <string notr="true" extracomment="Translatable string with plural form set in CPP file">Restore Entry</string>
    </property>
    <property name="shortcut">
     <string notr="true">Ctrl+R</string>
    </property>
   </action>
   <action name="actionLockDatabaseToolbar">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;Lock Database</string>
    </property>
   </action>
   <action name="actionExportXML">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>&amp;XML File…</string>
    </property>
    <property name="toolTip">
-    <string>XML File…</string>
+    <string>Export to XML</string>
    </property>
   </action>
   <action name="actionAllowScreenCapture">
@@ -1161,6 +1280,36 @@
    </property>
    <property name="text">
     <string>Allow Screen Capture</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Allow Screen Capture</string>
+   </property>
+  </action>
+  <action name="actionImport1PUX">
+   <property name="text">
+    <string>1Password 1PUX...</string>
+   </property>
+   <property name="toolTip">
+    <string>Import a 1Password 1PUX file</string>
+   </property>
+  </action>
+  <action name="actionImport">
+   <property name="text">
+    <string>Import…</string>
+   </property>
+  </action>
+  <action name="actionShowGroupPanel">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Group Panel</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle Show Group Panel</string>
    </property>
   </action>
  </widget>

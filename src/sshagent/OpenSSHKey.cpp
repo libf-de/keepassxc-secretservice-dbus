@@ -20,6 +20,7 @@
 
 #include "ASN1Key.h"
 #include "BinaryStream.h"
+#include "core/Global.h"
 #include "crypto/Random.h"
 #include "crypto/SymmetricCipher.h"
 
@@ -84,7 +85,7 @@ const QString OpenSSHKey::type() const
 const QString OpenSSHKey::fingerprint(QCryptographicHash::Algorithm algo) const
 {
     if (m_rawPublicData.isEmpty()) {
-        return {};
+        return tr("(encrypted)");
     }
 
     QByteArray publicKey;
@@ -226,7 +227,7 @@ void OpenSSHKey::clearPrivate()
 bool OpenSSHKey::extractPEM(const QByteArray& in, QByteArray& out)
 {
     QString pem = QString::fromLatin1(in);
-    QStringList rows = pem.split(QRegularExpression("(?:\r?\n|\r)"), QString::SkipEmptyParts);
+    QStringList rows = pem.split(QRegularExpression("(?:\r?\n|\r)"), Qt::SkipEmptyParts);
 
     if (rows.length() < 3) {
         m_error = tr("Invalid key file, expecting an OpenSSH key");
@@ -351,6 +352,8 @@ bool OpenSSHKey::parsePKCS1PEM(const QByteArray& in)
     // load private if no encryption
     if (!encrypted()) {
         return openKey();
+    } else {
+        m_comment = tr("(encrypted)");
     }
 
     return true;

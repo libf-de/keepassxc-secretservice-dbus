@@ -29,6 +29,8 @@
 #include <QSortFilterProxyModel>
 #include <QStandardItemModel>
 
+#include <algorithm>
+
 namespace
 {
     class ReportSortProxyModel : public QSortFilterProxyModel
@@ -132,7 +134,7 @@ void ReportsWidgetHibp::makeHibpTable()
     }
 
     // Sort descending by the number the password has been exposed
-    qSort(items.begin(), items.end(), [](QPair<Entry*, int>& lhs, QPair<Entry*, int>& rhs) {
+    std::sort(items.begin(), items.end(), [](QPair<Entry*, int>& lhs, QPair<Entry*, int>& rhs) {
         return lhs.second > rhs.second;
     });
 
@@ -372,6 +374,11 @@ void ReportsWidgetHibp::customMenuRequested(QPoint pos)
         });
     }
 
+    // Create the "Expire entry" menu item
+    const auto expEntry = new QAction(icons()->icon("entry-expire"), tr("Expire Entry(s)…", "", selected.size()), this);
+    menu->addAction(expEntry);
+    connect(expEntry, &QAction::triggered, this, &ReportsWidgetHibp::expireSelectedEntries);
+
     // Create the "delete entry" menu item
     const auto delEntry = new QAction(icons()->icon("entry-delete"), tr("Delete Entry(s)…", "", selected.size()), this);
     menu->addAction(delEntry);
@@ -409,7 +416,7 @@ void ReportsWidgetHibp::customMenuRequested(QPoint pos)
     menu->popup(m_ui->hibpTableView->viewport()->mapToGlobal(pos));
 }
 
-void ReportsWidgetHibp::deleteSelectedEntries()
+QList<Entry*> ReportsWidgetHibp::getSelectedEntries()
 {
     QList<Entry*> selectedEntries;
     for (auto index : m_ui->hibpTableView->selectionModel()->selectedRows()) {
@@ -419,7 +426,21 @@ void ReportsWidgetHibp::deleteSelectedEntries()
             selectedEntries << entry;
         }
     }
+    return selectedEntries;
+}
 
+void ReportsWidgetHibp::expireSelectedEntries()
+{
+    for (auto entry : getSelectedEntries()) {
+        entry->expireNow();
+    }
+
+    makeHibpTable();
+}
+
+void ReportsWidgetHibp::deleteSelectedEntries()
+{
+    QList<Entry*> selectedEntries = getSelectedEntries();
     bool permanent = !m_db->metadata()->recycleBinEnabled();
     if (GuiTools::confirmDeleteEntries(this, selectedEntries, permanent)) {
         GuiTools::deleteEntriesResolveReferences(this, selectedEntries, permanent);

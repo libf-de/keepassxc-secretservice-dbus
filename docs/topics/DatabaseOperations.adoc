@@ -84,7 +84,7 @@ There are three ways that KeePassXC can handle database files. This behavior is 
 
 3. *Direct-write saves* write directly to the existing database file. This is an unsafe operation since any interruption can leave your entire database inaccessible. We only recommend using this option when interfacing with Linux GVFS services (e.g. Google Cloud on Gnome) and other types of storage services that host a virtual drive system.
 
-In addition to these save options, KeePassXC can create a backup of your existing database file just prior to saving. This backup will be saved at the path specified in the *Backup destination* field. This path can be absolute or relative. The latter will be resolved according to the databases path. It is possible to specify a custom naming scheme with placeholders. See xref:UserGuide.adoc#_backup_path_placeholders[Backup Path Placeholders] for available placeholders and examples.
+In addition to these save options, KeePassXC can create a backup of your existing database file just prior to saving. This backup will be saved at the path specified in the *Backup destination* field. This path can be absolute or relative. The latter will be resolved according to the databases path. It is possible to specify a custom naming scheme with placeholders. See <<Backup Path Placeholders, Backup Path Placeholders>> for available placeholders and examples.
 
 image::save_options.png[]
 // end::advanced[]
@@ -180,7 +180,7 @@ image::clone_entry_dialog.png[,50%]
 .References in a cloned entry
 image::clone_entry_references.png[]
 
-4. You can create your own references using the xref:UserGuide.adoc#_entry_cross_reference[Entry Reference Syntax]
+4. You can create your own references using the <<Entry Cross-Reference, Entry Reference Syntax>>
 
 == Searching the Database
 KeePassXC provides an enhanced and granular search features the enables you to search for specific entries in the databases using the different modifiers, wild card characters, and logical operators.
@@ -266,7 +266,7 @@ image::edit_entry_colors.png[]
 === Icons
 You can select an icon to be displayed with each entry for easy identification. KeePassXC comes with a set of default icons that you can use or you can use your own custom icons. If you defined a URL with an entry, you can also download the favorite icon for that particular website.
 
-NOTE: To delete a custom icon, go to xref:UserGuide.adoc#_database_maintenance[Database Maintenance] where you can purge unused icons and delete one or more icons at a time.
+NOTE: To delete a custom icon, go to <<Database Maintenance>> where you can purge unused icons and delete one or more icons at a time.
 
 .Entry icon selection
 image::edit_entry_icons.png[]
@@ -389,6 +389,24 @@ You will be asked to enter the HMAC key you created earlier, copy/paste they key
 
 == Command Line Tool
 KeePassXC comes with the command line tool *keepassxc-cli* to access, view, and manipulate your database directly from a terminal window. The tool is documented through a separate man page, which can be shown using `man keepassxc-cli`, or through the on-demand help using `keepassxc-cli [command] -h`. An online version of the man page is https://github.com/keepassxreboot/keepassxc/blob/master/docs/man/keepassxc-cli.1.adoc[available on GitHub].
+
+== Remote database support
+KeePassXC provides support for syncing database files that reside in a remote location. If you can download/upload the database file via a commandline tool (e.g. rsync, ssh, scp etc.) KeePassXC offers easy to use functionality to sync the remote database.
+
+=== Sync with remote database
+Open the remote sync settings via _Database > Database Settings… > Remote_ to create commands to sync a local database or a temporary local copy of a remote database.
+
+Define a name for your sync command and specify a download *(A)* as well as an upload command *(B)*. The command and/or input need a `{TEMP_DATABASE}` placeholder specified where the remote database is temporarily stored. Do not forget to save the command settings with the save button *\(C)*. Remote settings are added as menu entries below the _Remote Sync…_ menu for quick access.
+
+WARNING: If your download or upload command require a password prompt, the command will most likely not succeed. In case of an SSH connection (e.g. sftp), it is recommended to use <<KeePassXC – SSH Agent integration,SSH agent>> so that no password prompt is needed.
+
+.Remote sync settings
+image::sync_remote_settings.png[]
+
+Select the remote sync command from the _Database > Remote Sync…_ menu to start the syncing process and a progress bar will show up in the lower right corner.
+
+WARNING: In case the remote database is changed by another user/process after the downloading command finishes and before uploading again, those changes will be overwritten. Syncing is not an atomic operation.
+
 // end::advanced[]
 
 == Storing a Database File

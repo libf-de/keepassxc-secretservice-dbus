@@ -6,18 +6,22 @@
         <file>application/256x256/apps/keepassxc.png</file>
 
         <file>application/scalable/actions/application-exit.svg</file>
+        <file>application/scalable/actions/arrow-collapse-down.svg</file>
         <file>application/scalable/actions/attributes-copy.svg</file>
         <file>application/scalable/actions/auto-type.svg</file>
+        <file>application/scalable/actions/bitwarden.svg</file>
         <file>application/scalable/actions/bugreport.svg</file>
         <file>application/scalable/actions/chevron-double-down.svg</file>
         <file>application/scalable/actions/chevron-double-right.svg</file>
         <file>application/scalable/actions/clipboard-text.svg</file>
         <file>application/scalable/actions/configure.svg</file>
+        <file>application/scalable/actions/csv.svg</file>
         <file>application/scalable/actions/database-change-key.svg</file>
         <file>application/scalable/actions/database-lock.svg</file>
         <file>application/scalable/actions/database-lock-all.svg</file>
         <file>application/scalable/actions/database-merge.svg</file>
         <file>application/scalable/actions/database-search.svg</file>
+        <file>application/scalable/actions/database-settings.svg</file>
         <file>application/scalable/actions/dialog-close.svg</file>
         <file>application/scalable/actions/dialog-ok.svg</file>
         <file>application/scalable/actions/document-close.svg</file>
@@ -36,6 +40,7 @@
         <file>application/scalable/actions/edit-clear-locationbar-rtl.svg</file>
         <file>application/scalable/actions/entry-clone.svg</file>
         <file>application/scalable/actions/entry-delete.svg</file>
+        <file>application/scalable/actions/entry-expire.svg</file>
         <file>application/scalable/actions/entry-restore.svg</file>
         <file>application/scalable/actions/entry-edit.svg</file>
         <file>application/scalable/actions/entry-new.svg</file>
@@ -53,19 +58,25 @@
         <file>application/scalable/actions/hibp.svg</file>
         <file>application/scalable/actions/lock-question.svg</file>
         <file>application/scalable/actions/keyboard-shortcuts.svg</file>
+        <file>application/scalable/actions/lock.svg</file>
+        <file>application/scalable/actions/lock-open.svg</file>
+        <file>application/scalable/actions/lock-open-alert.svg</file>
         <file>application/scalable/actions/message-close.svg</file>
         <file>application/scalable/actions/move-down.svg</file>
         <file>application/scalable/actions/move-up.svg</file>
         <file>application/scalable/actions/object-locked.svg</file>
         <file>application/scalable/actions/object-unlocked.svg</file>
+        <file>application/scalable/actions/onepassword.svg</file>
         <file>application/scalable/actions/paperclip.svg</file>
         <file>application/scalable/actions/passkey.svg</file>
         <file>application/scalable/actions/password-copy.svg</file>
         <file>application/scalable/actions/password-generator.svg</file>
         <file>application/scalable/actions/password-show-off.svg</file>
         <file>application/scalable/actions/password-show-on.svg</file>
+        <file>application/scalable/actions/proton.svg</file>
         <file>application/scalable/actions/qrcode.svg</file>
         <file>application/scalable/actions/refresh.svg</file>
+        <file>application/scalable/actions/remote-sync.svg</file>
         <file>application/scalable/actions/reports.svg</file>
         <file>application/scalable/actions/reports-exclude.svg</file>
         <file>application/scalable/actions/sort-alphabetical-ascending.svg</file>
@@ -87,6 +98,7 @@
         <file>application/scalable/actions/username-copy.svg</file>
         <file>application/scalable/actions/view-history.svg</file>
         <file>application/scalable/actions/web.svg</file>
+        <file>application/scalable/actions/yubikey-refresh.svg</file>
         <file>application/scalable/apps/freedesktop.svg</file>
         <file>application/scalable/apps/internet-web-browser.svg</file>
         <file>application/scalable/apps/keepassxc.svg</file>

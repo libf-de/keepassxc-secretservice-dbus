@@ -311,6 +311,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="allowLocalhostWithPasskeys">
+         <property name="toolTip">
+          <string>Allows using insecure http://localhost with passkeys for testing purposes.</string>
+         </property>
+         <property name="text">
+          <string>Allow using localhost with passkeys</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="noMigrationPrompt">
          <property name="toolTip">
           <string>Don't display the popup suggesting migration of legacy KeePassHTTP settings.</string>
@@ -487,7 +497,7 @@
            </layout>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout">
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
             <item>
              <widget class="QLabel" name="customBrowserLabel_2">
               <property name="sizePolicy">
